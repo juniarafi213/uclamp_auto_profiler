@@ -14,6 +14,9 @@ if ! pm path bellavita.toast >/dev/null 2>&1 && [ -f "${MODDIR}/toast.apk" ]; th
     pm install -r "${MODDIR}/toast.apk" >/dev/null 2>&1
 fi
 
+# Dismiss any old lingering shell command notifications
+cmd notification snooze --for 99999999999 "0|com.android.shell|2020|uclamp_mode|2000" >/dev/null 2>&1
+
 # Enforce LMKD Anti-Kill properties for SDM845
 if [ -x "/data/adb/ksu/bin/resetprop" ]; then
     /data/adb/ksu/bin/resetprop persist.device_config.lmkd_native.swap_free_low_percentage 0 >/dev/null 2>&1

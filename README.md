@@ -20,9 +20,9 @@ Includes a fully responsive, self-contained **WebUI** inside **KernelSU Next** w
   - Automatically triggers battery endurance mode when battery falls below threshold (<= 20%).
 
 - 🔔 **Instant On-Screen Mode Popups & Haptics**:
-  - Displays instant transparent Android toast popups directly over full-screen games when profiles switch (`Game Mode`, `Daily`, `Battery`).
+  - Displays minimalist transparent Android toast popups directly over full-screen games (e.g., `Uclamp: Balanced`, `Uclamp: Game Mode`, `Uclamp: Battery Saver`).
   - Tactile haptic vibration patterns per profile (e.g., dual pulse when entering games).
-  - Persistent fallback in the notification shade.
+  - Pure toast output with zero shell notification clutter in the status bar.
 
 - 🎮 **Game Mode (Max Performance & RAM Protection)**:
   - Purges caches (`drop_caches`) on launch to free up to 1.8 GB of physical RAM.
