@@ -1,0 +1,11 @@
+# Git ignore for UCLAMP Auto Profiler
+*.zip
+*.log
+*.pid
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+build/
+dist/

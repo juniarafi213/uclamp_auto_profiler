@@ -1,0 +1,38 @@
+#!/bin/sh
+OUTFD=$2
+ZIPFILE=$3
+
+ui_print() {
+    echo -e "ui_print $1\nui_print" > /proc/self/fd/$OUTFD 2>/dev/null || echo "$1"
+}
+
+ui_print "**********************************************"
+ui_print "*         UCLAMP AUTO PROFILER               *"
+ui_print "*   Dynamic Hardware Tuner & WebUI (SDM845)  *"
+ui_print "*   By ivy & Antigravity                     *"
+ui_print "**********************************************"
+
+MODPATH="/data/adb/modules/uclamp_auto_profiler"
+DATA_DIR="/data/adb/uclamp_profiler"
+
+ui_print "- Extracting module files..."
+mkdir -p "$MODPATH" "$DATA_DIR"
+unzip -o "$ZIPFILE" -d "$MODPATH" -x "META-INF/*"
+
+ui_print "- Setting executable permissions..."
+chmod 755 "$MODPATH"/*.sh
+chmod 755 "$MODPATH"/system/bin/* 2>/dev/null
+
+ui_print "- Creating CLI binary shortcut in /data/adb/ksu/bin..."
+mkdir -p /data/adb/ksu/bin
+ln -sf "$MODPATH/system/bin/uclamp_profiler" /data/adb/ksu/bin/uclamp_profiler
+
+ui_print "- Initializing default config..."
+if [ ! -f "$DATA_DIR/config.json" ]; then
+    cp "$MODPATH/default_config.json" "$DATA_DIR/config.json"
+fi
+sh "$MODPATH/tuner.sh" sync_config
+
+ui_print "- UCLAMP Auto Profiler installed successfully!"
+ui_print "- Open KernelSU Next Manager -> Modules to launch WebUI."
+exit 0

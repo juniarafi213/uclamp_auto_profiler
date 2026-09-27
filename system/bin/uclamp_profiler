@@ -1,0 +1,2 @@
+#!/system/bin/sh
+exec /system/bin/sh /data/adb/modules/uclamp_auto_profiler/tuner.sh "$@"

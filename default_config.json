@@ -1,0 +1,25 @@
+{
+  "auto_mode": true,
+  "forced_mode": "auto",
+  "check_interval_sec": 2,
+  "screen_off_powersave": true,
+  "battery_saver_trigger": true,
+  "battery_saver_level": 20,
+  "game_apps": [
+    "com.miHoYo.GenshinImpact",
+    "com.cognosphere.GenshinImpact",
+    "com.HoYoverse.hkrpgoversea",
+    "com.miHoYo.hkrpg",
+    "com.HoYoverse.Nap",
+    "com.kurogame.wutheringwaves.global",
+    "com.mobile.legends",
+    "com.dts.freefireth",
+    "com.tencent.ig",
+    "com.pubg.krmobile",
+    "com.activision.callofduty.shooter"
+  ],
+  "battery_apps": [
+    "com.google.android.apps.books",
+    "com.amazon.kindle"
+  ]
+}

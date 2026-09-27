@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UCLAMP Auto Profiler</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --surface: #131b2e;
+      --surface-card: #182238;
+      --surface-hover: #1f2d4a;
+      --border: rgba(255, 255, 255, 0.08);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-game: #00e676;
+      --accent-game-glow: rgba(0, 230, 118, 0.25);
+      --accent-daily: #00b0ff;
+      --accent-daily-glow: rgba(0, 176, 255, 0.25);
+      --accent-battery: #ffab00;
+      --accent-battery-glow: rgba(255, 171, 0, 0.25);
+      --danger: #ff5252;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding: 16px;
+      padding-bottom: 90px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Top Bar */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-title h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #00e676, #00b0ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #00e676, #00b0ff);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .status-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-capsule.game {
+      background: var(--accent-game-glow);
+      color: var(--accent-game);
+      border: 1px solid var(--accent-game);
+    }
+    .status-capsule.balance {
+      background: var(--accent-daily-glow);
+      color: var(--accent-daily);
+      border: 1px solid var(--accent-daily);
+    }
+    .status-capsule.battery {
+      background: var(--accent-battery-glow);
+      color: var(--accent-battery);
+      border: 1px solid var(--accent-battery);
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Mode Selector Buttons */
+    .mode-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .mode-btn {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 10px 4px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+    .mode-btn.active {
+      background: var(--surface-hover);
+      color: #fff;
+    }
+    .mode-btn.active.auto {
+      border-color: #a855f7;
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+      color: #c084fc;
+    }
+    .mode-btn.active.game {
+      border-color: var(--accent-game);
+      box-shadow: 0 0 12px var(--accent-game-glow);
+      color: var(--accent-game);
+    }
+    .mode-btn.active.balance {
+      border-color: var(--accent-daily);
+      box-shadow: 0 0 12px var(--accent-daily-glow);
+      color: var(--accent-daily);
+    }
+    .mode-btn.active.battery {
+      border-color: var(--accent-battery);
+      box-shadow: 0 0 12px var(--accent-battery-glow);
+      color: var(--accent-battery);
+    }
+
+    /* Hardware Telemetry Grid */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .tele-item {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+    }
+    .tele-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .tele-val {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .tele-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .bar-bg {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent-daily);
+      transition: width 0.3s ease;
+    }
+
+    /* Focus App Banner */
+    .focus-banner {
+      background: linear-gradient(135deg, rgba(0, 230, 118, 0.1), rgba(0, 176, 255, 0.1));
+      border: 1px solid rgba(0, 230, 118, 0.3);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .focus-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .focus-icon {
+      width: 36px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .focus-text h4 {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .focus-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Search & Filter Bar */
+    .filter-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .search-box {
+      width: 100%;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-box:focus {
+      border-color: var(--accent-daily);
+    }
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .filter-tab {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .filter-tab.active {
+      background: var(--accent-daily);
+      color: #000;
+      border-color: var(--accent-daily);
+    }
+
+    /* App List */
+    .app-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .app-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .app-card.focused {
+      border-color: var(--accent-game);
+      box-shadow: 0 0 10px rgba(0, 230, 118, 0.15);
+    }
+    .app-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+    .app-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .app-avatar.game { background: linear-gradient(135deg, #059669, #10b981); }
+    .app-avatar.battery { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .app-avatar.balance { background: linear-gradient(135deg, #0284c7, #38bdf8); }
+
+    .app-meta {
+      min-width: 0;
+      overflow: hidden;
+    }
+    .app-name {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .app-pkg {
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Segmented Control for Mode */
+    .app-modes {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px;
+      flex-shrink: 0;
+    }
+    .app-mode-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+    }
+    .app-mode-btn.active.game {
+      background: var(--accent-game);
+      color: #000;
+    }
+    .app-mode-btn.active.balance {
+      background: var(--accent-daily);
+      color: #000;
+    }
+    .app-mode-btn.active.battery {
+      background: var(--accent-battery);
+      color: #000;
+    }
+
+    /* Actions Bar */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .btn-action {
+      flex: 1;
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-card);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-action:active {
+      background: var(--surface-hover);
+    }
+
+    /* Collapsible Details */
+    details {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      margin-top: 12px;
+    }
+    summary {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      outline: none;
+    }
+    .tunables-table {
+      width: 100%;
+      margin-top: 10px;
+      font-size: 11px;
+      border-collapse: collapse;
+    }
+    .tunables-table th, .tunables-table td {
+      padding: 6px 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      text-align: left;
+    }
+    .tunables-table th { color: var(--text-muted); font-weight: 600; }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1e293b;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <div class="header">
+    <div class="header-title">
+      <div class="header-logo">⚡</div>
+      <div>
+        <h1>UCLAMP Profiler</h1>
+      </div>
+    </div>
+    <div id="statusCapsule" class="status-capsule balance">
+      <div class="pulse-dot"></div>
+      <span id="currentModeLabel">BALANCED</span>
+    </div>
+  </div>
+
+  <!-- Focus / Top Running App Banner -->
+  <div class="focus-banner">
+    <div class="focus-info">
+      <div class="focus-icon" id="focusIcon">📱</div>
+      <div class="focus-text">
+        <h4 id="focusAppName">Launcher</h4>
+        <p id="focusPkgName">com.android.launcher</p>
+      </div>
+    </div>
+    <div id="focusProfileBadge" class="status-capsule balance" style="font-size: 10px; padding: 2px 8px;">
+      BALANCED
+    </div>
+  </div>
+
+  <!-- Global Mode Selector -->
+  <div class="mode-selector">
+    <button class="mode-btn active auto" id="btnModeAuto" onclick="setGlobalMode('auto')">
+      <span style="font-size: 16px;">🤖</span>
+      <span>Auto</span>
+    </button>
+    <button class="mode-btn game" id="btnModeGame" onclick="setGlobalMode('game')">
+      <span style="font-size: 16px;">🎮</span>
+      <span>Game</span>
+    </button>
+    <button class="mode-btn balance" id="btnModeBalance" onclick="setGlobalMode('balance')">
+      <span style="font-size: 16px;">⚖️</span>
+      <span>Daily</span>
+    </button>
+    <button class="mode-btn battery" id="btnModeBattery" onclick="setGlobalMode('battery')">
+      <span style="font-size: 16px;">🔋</span>
+      <span>Battery</span>
+    </button>
+  </div>
+
+  <!-- Hardware Telemetry Dashboard -->
+  <div class="card">
+    <div class="card-title">
+      <span>SDM845 TELEMETRY</span>
+      <span id="daemonStatus" style="font-size: 11px; color: var(--accent-game);">● Daemon Active</span>
+    </div>
+    <div class="telemetry-grid">
+      <div class="tele-item">
+        <div class="tele-label">
+          <span>Physical RAM</span>
+          <span id="ramFreeLabel">720 MB free</span>
+        </div>
+        <div class="tele-val" id="ramVal">2.9 / 3.7 GB</div>
+        <div class="bar-bg"><div class="bar-fill" id="ramBar" style="width: 78%;"></div></div>
+      </div>
+      <div class="tele-item">
+        <div class="tele-label">
+          <span>ZRAM (LZ4)</span>
+          <span id="zramValLabel">0 / 3.5 GB</span>
+        </div>
+        <div class="tele-val" id="swapVal">3.5 GB</div>
+        <div class="bar-bg"><div class="bar-fill" id="swapBar" style="width: 15%; background: var(--accent-game);"></div></div>
+      </div>
+      <div class="tele-item">
+        <div class="tele-label">
+          <span>CPU (Little / Big)</span>
+        </div>
+        <div class="tele-val" id="cpuVal">1.76 / 2.64 GHz</div>
+        <div class="tele-sub">CASS Core Steering: ACTIVE</div>
+      </div>
+      <div class="tele-item">
+        <div class="tele-label">
+          <span>GPU Adreno 630</span>
+          <span id="gpuPwrLabel">Pwr: 6</span>
+        </div>
+        <div class="tele-val" id="gpuVal">342 MHz</div>
+        <div class="tele-sub" id="batteryLabel">Battery: 80% ⚡</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Utility Actions -->
+  <div class="quick-actions">
+    <button class="btn-action" onclick="purgeRam()">
+      <span>🧹</span> Drop RAM Cache
+    </button>
+    <button class="btn-action" onclick="restartDaemon()">
+      <span>🔄</span> Restart Daemon
+    </button>
+    <button class="btn-action" onclick="promptCustomApp()">
+      <span>➕</span> Add App
+    </button>
+  </div>
+
+  <!-- App Profiler Matrix -->
+  <div class="card">
+    <div class="card-title">
+      <span>APP PROFILER TOGGLES</span>
+      <span id="appCountLabel" style="font-size: 11px;">14 Apps</span>
+    </div>
+
+    <div class="filter-section">
+      <input type="text" id="searchInput" class="search-box" placeholder="Search apps (e.g. Genshin, Chrome)..." oninput="renderAppList()">
+      <div class="filter-tabs">
+        <button class="filter-tab active" id="tabAll" onclick="setFilter('all')">All</button>
+        <button class="filter-tab" id="tabGame" onclick="setFilter('game')">🎮 Game</button>
+        <button class="filter-tab" id="tabBalance" onclick="setFilter('balance')">⚖️ Daily</button>
+        <button class="filter-tab" id="tabBattery" onclick="setFilter('battery')">🔋 Battery</button>
+      </div>
+    </div>
+
+    <div class="app-list" id="appListContainer">
+      <!-- Dynamically generated app cards -->
+    </div>
+  </div>
+
+  <!-- Hardware Tuning Matrix Reference -->
+  <details>
+    <summary>⚙️ View Kernel & Hardware Tunables Applied</summary>
+    <table class="tunables-table">
+      <thead>
+        <tr>
+          <th>Subsystem</th>
+          <th>Game Mode</th>
+          <th>Daily Balanced</th>
+          <th>Battery Saver</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>UCLAMP top-app</td>
+          <td style="color:var(--accent-game);">min 35 / boost 1</td>
+          <td style="color:var(--accent-daily);">min 20 / boost 1</td>
+          <td style="color:var(--accent-battery);">min 0 / max 80</td>
+        </tr>
+        <tr>
+          <td>Schedutil Little/Big</td>
+          <td style="color:var(--accent-game);">up 0us / down 50ms</td>
+          <td style="color:var(--accent-daily);">up 500us / down 20ms</td>
+          <td style="color:var(--accent-battery);">up 2-3ms / down 5ms</td>
+        </tr>
+        <tr>
+          <td>GPU Adreno 630</td>
+          <td style="color:var(--accent-game);">342 - 710 MHz</td>
+          <td style="color:var(--accent-daily);">257 - 710 MHz</td>
+          <td style="color:var(--accent-battery);">Cap 520 MHz</td>
+        </tr>
+        <tr>
+          <td>VM Swappiness</td>
+          <td style="color:var(--accent-game);">160 (Max RAM free)</td>
+          <td style="color:var(--accent-daily);">100</td>
+          <td style="color:var(--accent-battery);">60</td>
+        </tr>
+        <tr>
+          <td>I/O Anxiety Sync</td>
+          <td style="color:var(--accent-game);">Ratio 8 / 1024KB</td>
+          <td style="color:var(--accent-daily);">Ratio 4 / 512KB</td>
+          <td style="color:var(--accent-battery);">Ratio 2 / 128KB</td>
+        </tr>
+        <tr>
+          <td>OOM Score Adj</td>
+          <td style="color:var(--accent-game);">-900 (Immune)</td>
+          <td>Normal</td>
+          <td>Normal</td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
+
+  <!-- Toast Notification -->
+  <div id="toast">Profile Updated</div>
+
+  <script>
+    // KernelSU Execution Bridge
+    const isKsu = typeof window.ksu !== 'undefined';
+
+    function exec(cmd) {
+      if (!isKsu) {
+        console.warn("[Mock Exec]", cmd);
+        return Promise.resolve({ errno: 0, stdout: "", stderr: "" });
+      }
+      return new Promise((resolve) => {
+        const cb = 'ksu_cb_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+        window[cb] = (errno, stdout, stderr) => {
+          delete window[cb];
+          resolve({ errno, stdout, stderr });
+        };
+        try {
+          window.ksu.exec(cmd, "{}", cb);
+        } catch (e) {
+          delete window[cb];
+          resolve({ errno: 1, stdout: "", stderr: e.message });
+        }
+      });
+    }
+
+    function showToast(msg) {
+      if (isKsu && window.ksu.toast) {
+        window.ksu.toast(msg);
+      }
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    // State Variables
+    let appsData = [];
+    let stateData = {};
+    let configData = {};
+    let currentFilter = 'all';
+    let globalForcedMode = 'auto';
+
+    async function loadData() {
+      try {
+        const res = await exec("sh /data/adb/modules/uclamp_auto_profiler/tuner.sh get_info");
+        if (res && res.stdout) {
+          const parsed = JSON.parse(res.stdout);
+          stateData = parsed.state || {};
+          configData = parsed.config || {};
+          appsData = parsed.apps || [];
+          globalForcedMode = configData.forced_mode || 'auto';
+          updateDashboard();
+          renderAppList();
+        }
+      } catch (err) {
+        console.error("loadData error:", err);
+      }
+    }
+
+    async function pollLiveStats() {
+      try {
+        const res = await exec("sh /data/adb/modules/uclamp_auto_profiler/tuner.sh get_state");
+        if (res && res.stdout) {
+          stateData = JSON.parse(res.stdout);
+          updateDashboard();
+        }
+      } catch (e) {
+        console.error("pollLiveStats error:", e);
+      }
+    }
+
+    function updateDashboard() {
+      const mode = stateData.current_mode || 'balance';
+      const cap = document.getElementById('statusCapsule');
+      cap.className = 'status-capsule ' + mode;
+      document.getElementById('currentModeLabel').innerText = mode.toUpperCase();
+
+      // Top running app
+      const topPkg = stateData.top_package || 'None';
+      document.getElementById('focusPkgName').innerText = topPkg;
+      const matchingApp = appsData.find(a => a.pkg === topPkg);
+      document.getElementById('focusAppName').innerText = matchingApp ? matchingApp.label : topPkg.split('.').pop();
+      document.getElementById('focusProfileBadge').className = 'status-capsule ' + mode;
+      document.getElementById('focusProfileBadge').innerText = mode.toUpperCase();
+
+      // Telemetry
+      const ramUsed = stateData.ram_used || 0;
+      const ramTot = stateData.ram_total || 3674;
+      const ramFree = stateData.ram_free || 0;
+      document.getElementById('ramVal').innerText = (ramUsed / 1024).toFixed(1) + ' / ' + (ramTot / 1024).toFixed(1) + ' GB';
+      document.getElementById('ramFreeLabel').innerText = ramFree + ' MB free';
+      document.getElementById('ramBar').style.width = Math.min(100, Math.round((ramUsed / ramTot) * 100)) + '%';
+
+      const swapUsed = stateData.swap_used || 0;
+      const swapTot = stateData.swap_total || 3583;
+      document.getElementById('swapVal').innerText = (swapTot / 1024).toFixed(1) + ' GB';
+      document.getElementById('zramValLabel').innerText = swapUsed + ' / ' + swapTot + ' MB';
+      document.getElementById('swapBar').style.width = Math.min(100, Math.round((swapUsed / (swapTot || 1)) * 100)) + '%';
+
+      document.getElementById('cpuVal').innerText = ((stateData.cpu_little_mhz || 1200) / 1000).toFixed(2) + ' / ' + ((stateData.cpu_big_mhz || 1600) / 1000).toFixed(2) + ' GHz';
+      document.getElementById('gpuVal').innerText = (stateData.gpu_mhz || 342) + ' MHz';
+      document.getElementById('gpuPwrLabel').innerText = 'Pwr: ' + (stateData.gpu_pwrlevel || 6);
+
+      const isChg = stateData.is_charging ? '⚡ Charging' : '';
+      document.getElementById('batteryLabel').innerText = 'Battery: ' + (stateData.battery_level || 0) + '% ' + isChg;
+
+      // Daemon status
+      const daemonEl = document.getElementById('daemonStatus');
+      if (stateData.daemon_alive) {
+        daemonEl.innerText = '● Daemon Active';
+        daemonEl.style.color = 'var(--accent-game)';
+      } else {
+        daemonEl.innerText = '○ Daemon Inactive';
+        daemonEl.style.color = 'var(--danger)';
+      }
+
+      // Mode selector active states
+      ['Auto', 'Game', 'Balance', 'Battery'].forEach(m => {
+        const btn = document.getElementById('btnMode' + m);
+        if (btn) btn.classList.remove('active');
+      });
+      const activeBtnId = 'btnMode' + globalForcedMode.charAt(0).toUpperCase() + globalForcedMode.slice(1);
+      const activeBtn = document.getElementById(activeBtnId);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['all', 'game', 'balance', 'battery'].forEach(f => {
+        const el = document.getElementById('tab' + f.charAt(0).toUpperCase() + f.slice(1));
+        if (el) el.classList.toggle('active', f === filter);
+      });
+      renderAppList();
+    }
+
+    function renderAppList() {
+      const container = document.getElementById('appListContainer');
+      const query = (document.getElementById('searchInput').value || '').toLowerCase();
+      container.innerHTML = '';
+
+      let filtered = appsData.filter(app => {
+        const matchQuery = app.label.toLowerCase().includes(query) || app.pkg.toLowerCase().includes(query);
+        const matchFilter = currentFilter === 'all' || app.mode === currentFilter;
+        return matchQuery && matchFilter;
+      });
+
+      document.getElementById('appCountLabel').innerText = filtered.length + ' Apps';
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--text-muted);">No apps found matching criteria</div>';
+        return;
+      }
+
+      filtered.forEach(app => {
+        const card = document.createElement('div');
+        const isCurrentFocused = stateData.top_package === app.pkg;
+        card.className = 'app-card' + (isCurrentFocused ? ' focused' : '');
+
+        const initial = app.label.charAt(0).toUpperCase();
+
+        card.innerHTML = `
+          <div class="app-left">
+            <div class="app-avatar ${app.mode}">${initial}</div>
+            <div class="app-meta">
+              <div class="app-name">${app.label} ${isCurrentFocused ? '<span style="font-size:9px; background:var(--accent-game); color:#000; padding:1px 6px; border-radius:10px; font-weight:700;">RUNNING</span>' : ''}</div>
+              <div class="app-pkg">${app.pkg}</div>
+            </div>
+          </div>
+          <div class="app-modes">
+            <button class="app-mode-btn ${app.mode === 'game' ? 'active game' : ''}" onclick="changeAppMode('${app.pkg}', 'game')">Game</button>
+            <button class="app-mode-btn ${app.mode === 'balance' ? 'active balance' : ''}" onclick="changeAppMode('${app.pkg}', 'balance')">Daily</button>
+            <button class="app-mode-btn ${app.mode === 'battery' ? 'active battery' : ''}" onclick="changeAppMode('${app.pkg}', 'battery')">Battery</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function changeAppMode(pkg, newMode) {
+      const app = appsData.find(a => a.pkg === pkg);
+      if (app) app.mode = newMode;
+      renderAppList();
+
+      await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh set_app "${pkg}" "${newMode}"`);
+      showToast(`${app ? app.label : pkg} set to ${newMode.toUpperCase()}`);
+      pollLiveStats();
+    }
+
+    async function setGlobalMode(mode) {
+      globalForcedMode = mode;
+      updateDashboard();
+      if (mode === 'auto') {
+        await exec("rm -f /data/adb/uclamp_profiler/forced_mode");
+        showToast("Auto Autonomous Profiling Activated");
+      } else {
+        await exec(`echo "${mode}" > /data/adb/uclamp_profiler/forced_mode && sh /data/adb/modules/uclamp_auto_profiler/tuner.sh "${mode}"`);
+        showToast(`Forced ${mode.toUpperCase()} Profile Activated`);
+      }
+      pollLiveStats();
+    }
+
+    async function purgeRam() {
+      showToast("Purging RAM & Caches...");
+      await exec("sh /data/adb/modules/uclamp_auto_profiler/tuner.sh purge");
+      showToast("RAM Caches Cleared!");
+      pollLiveStats();
+    }
+
+    async function restartDaemon() {
+      showToast("Restarting Profiler Daemon...");
+      await exec("sh /data/adb/modules/uclamp_auto_profiler/tuner.sh restart_daemon");
+      showToast("Daemon Restarted Successfully!");
+      setTimeout(pollLiveStats, 1000);
+    }
+
+    function promptCustomApp() {
+      const pkg = prompt("Enter package name (e.g. com.tencent.ig):");
+      if (pkg && pkg.trim().length > 3) {
+        const cleanPkg = pkg.trim();
+        appsData.push({
+          pkg: cleanPkg,
+          label: cleanPkg.split('.').pop(),
+          mode: 'game'
+        });
+        changeAppMode(cleanPkg, 'game');
+      }
+    }
+
+    // Initialize
+    loadData();
+    setInterval(pollLiveStats, 3000);
+  </script>
+</body>
+</html>
