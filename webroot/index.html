@@ -129,51 +129,51 @@
       justify-content: space-between;
     }
 
-    /* Mode Selector Buttons */
-    .mode-selector {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .mode-btn {
+    /* Modern Segmented Mode Selector */
+    .mode-segmented {
+      display: flex;
       background: var(--surface-card);
       border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .mode-seg-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
       color: var(--text-muted);
-      padding: 10px 4px;
-      border-radius: var(--radius-sm);
-      font-size: 11px;
+      padding: 9px 4px;
+      border-radius: 9px;
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 4px;
-      transition: all 0.2s ease;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .mode-btn.active {
-      background: var(--surface-hover);
+    .mode-seg-btn.active.auto {
+      background: #3b82f6;
       color: #fff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
     }
-    .mode-btn.active.auto {
-      border-color: #a855f7;
-      box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
-      color: #c084fc;
+    .mode-seg-btn.active.game {
+      background: var(--accent-game);
+      color: #000;
+      box-shadow: 0 2px 8px rgba(0, 230, 118, 0.3);
     }
-    .mode-btn.active.game {
-      border-color: var(--accent-game);
-      box-shadow: 0 0 12px var(--accent-game-glow);
-      color: var(--accent-game);
+    .mode-seg-btn.active.balance {
+      background: var(--accent-daily);
+      color: #000;
+      box-shadow: 0 2px 8px rgba(0, 176, 255, 0.3);
     }
-    .mode-btn.active.balance {
-      border-color: var(--accent-daily);
-      box-shadow: 0 0 12px var(--accent-daily-glow);
-      color: var(--accent-daily);
-    }
-    .mode-btn.active.battery {
-      border-color: var(--accent-battery);
-      box-shadow: 0 0 12px var(--accent-battery-glow);
-      color: var(--accent-battery);
+    .mode-seg-btn.active.battery {
+      background: var(--accent-battery);
+      color: #000;
+      box-shadow: 0 2px 8px rgba(255, 171, 0, 0.3);
     }
 
     /* Hardware Telemetry Grid */
@@ -192,9 +192,19 @@
       font-size: 11px;
       color: var(--text-muted);
       display: flex;
-      align-items: center;
+      align-items: baseline;
       justify-content: space-between;
+      gap: 6px;
       margin-bottom: 4px;
+    }
+    .tele-badge {
+      font-size: 10px;
+      color: var(--accent-daily);
+      font-weight: 600;
+      white-space: nowrap;
+      background: rgba(0, 176, 255, 0.1);
+      padding: 1px 6px;
+      border-radius: 6px;
     }
     .tele-val {
       font-size: 15px;
@@ -377,48 +387,64 @@
       text-overflow: ellipsis;
     }
 
-    /* Segmented Control for Mode */
+    /* Adaptive Segmented Control for Mode */
     .app-modes {
       display: flex;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 20px;
       padding: 2px;
       flex-shrink: 0;
+      gap: 2px;
     }
     .app-mode-btn {
       border: none;
       background: transparent;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 10px;
+      padding: 4px 6px;
+      border-radius: 14px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       color: var(--text-muted);
-      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .app-mode-btn .mode-lbl {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
     }
     .app-mode-btn.active.game {
       background: var(--accent-game);
       color: #000;
+      padding: 4px 8px;
+      box-shadow: 0 1px 6px rgba(0, 230, 118, 0.35);
     }
     .app-mode-btn.active.balance {
       background: var(--accent-daily);
       color: #000;
+      padding: 4px 8px;
+      box-shadow: 0 1px 6px rgba(0, 176, 255, 0.35);
     }
     .app-mode-btn.active.battery {
       background: var(--accent-battery);
       color: #000;
+      padding: 4px 8px;
+      box-shadow: 0 1px 6px rgba(255, 171, 0, 0.35);
     }
 
-    /* Actions Bar */
+    /* Actions Bar (Clean 2x2 Grid) */
     .quick-actions {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
       margin-bottom: 16px;
     }
     .btn-action {
-      flex: 1;
-      padding: 10px;
+      padding: 9px 12px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface-card);
@@ -430,10 +456,12 @@
       justify-content: center;
       gap: 6px;
       cursor: pointer;
-      transition: background 0.2s;
+      white-space: nowrap;
+      transition: background 0.2s, transform 0.1s;
     }
     .btn-action:active {
       background: var(--surface-hover);
+      transform: scale(0.98);
     }
 
     /* Collapsible Details */
@@ -527,23 +555,19 @@
     </div>
   </div>
 
-  <!-- Global Mode Selector -->
-  <div class="mode-selector">
-    <button class="mode-btn active auto" id="btnModeAuto" onclick="setGlobalMode('auto')">
-      <span style="font-size: 16px;">🤖</span>
-      <span>Auto</span>
+  <!-- Global Mode Selector (Sleek Segmented Bar) -->
+  <div class="mode-segmented">
+    <button class="mode-seg-btn active auto" id="btnModeAuto" onclick="setGlobalMode('auto')">
+      <span>🤖</span> Auto
     </button>
-    <button class="mode-btn game" id="btnModeGame" onclick="setGlobalMode('game')">
-      <span style="font-size: 16px;">🎮</span>
-      <span>Game</span>
+    <button class="mode-seg-btn game" id="btnModeGame" onclick="setGlobalMode('game')">
+      <span>🎮</span> Game
     </button>
-    <button class="mode-btn balance" id="btnModeBalance" onclick="setGlobalMode('balance')">
-      <span style="font-size: 16px;">⚖️</span>
-      <span>Daily</span>
+    <button class="mode-seg-btn balance" id="btnModeBalance" onclick="setGlobalMode('balance')">
+      <span>⚖️</span> Daily
     </button>
-    <button class="mode-btn battery" id="btnModeBattery" onclick="setGlobalMode('battery')">
-      <span style="font-size: 16px;">🔋</span>
-      <span>Battery</span>
+    <button class="mode-seg-btn battery" id="btnModeBattery" onclick="setGlobalMode('battery')">
+      <span>🔋</span> Battery
     </button>
   </div>
 
@@ -557,33 +581,34 @@
       <div class="tele-item">
         <div class="tele-label">
           <span>Physical RAM</span>
-          <span id="ramFreeLabel">720 MB free</span>
+          <span class="tele-badge" id="ramFreeLabel">-- free</span>
         </div>
-        <div class="tele-val" id="ramVal">2.9 / 3.7 GB</div>
-        <div class="bar-bg"><div class="bar-fill" id="ramBar" style="width: 78%;"></div></div>
+        <div class="tele-val" id="ramVal">-- / -- GB</div>
+        <div class="bar-bg"><div class="bar-fill" id="ramBar" style="width: 50%;"></div></div>
       </div>
       <div class="tele-item">
         <div class="tele-label">
-          <span>ZRAM (LZ4)</span>
-          <span id="zramValLabel">0 / 3.5 GB</span>
+          <span id="zramAlgLabel">ZRAM (ZSTD)</span>
+          <span class="tele-badge" id="zramValLabel">-- free</span>
         </div>
-        <div class="tele-val" id="swapVal">3.5 GB</div>
-        <div class="bar-bg"><div class="bar-fill" id="swapBar" style="width: 15%; background: var(--accent-game);"></div></div>
+        <div class="tele-val" id="swapVal">-- / 4.0 GB</div>
+        <div class="bar-bg"><div class="bar-fill" id="swapBar" style="width: 10%; background: var(--accent-game);"></div></div>
       </div>
       <div class="tele-item">
         <div class="tele-label">
-          <span>CPU (Little / Big)</span>
+          <span>CPU Clocks</span>
+          <span class="tele-badge" style="color:var(--accent-game); background:rgba(0,230,118,0.1);">CASS ACTIVE</span>
         </div>
-        <div class="tele-val" id="cpuVal">1.76 / 2.64 GHz</div>
-        <div class="tele-sub">CASS Core Steering: ACTIVE</div>
+        <div class="tele-val" id="cpuVal">-- / -- GHz</div>
+        <div class="tele-sub">Little / Big Cluster</div>
       </div>
       <div class="tele-item">
         <div class="tele-label">
           <span>GPU Adreno 630</span>
-          <span id="gpuPwrLabel">Pwr: 6</span>
+          <span class="tele-badge" id="gpuPwrLabel">Pwr: 6</span>
         </div>
-        <div class="tele-val" id="gpuVal">342 MHz</div>
-        <div class="tele-sub" id="batteryLabel">Battery: 80% ⚡</div>
+        <div class="tele-val" id="gpuVal">-- MHz</div>
+        <div class="tele-sub" id="batteryLabel">Battery: --%</div>
       </div>
     </div>
   </div>
@@ -659,21 +684,21 @@
         </tr>
         <tr>
           <td>VM Swappiness</td>
-          <td style="color:var(--accent-game);">160 (Max RAM free)</td>
+          <td style="color:var(--accent-game);">100</td>
           <td style="color:var(--accent-daily);">100</td>
           <td style="color:var(--accent-battery);">60</td>
         </tr>
         <tr>
-          <td>I/O Anxiety Sync</td>
-          <td style="color:var(--accent-game);">Ratio 8 / 1024KB</td>
-          <td style="color:var(--accent-daily);">Ratio 4 / 512KB</td>
-          <td style="color:var(--accent-battery);">Ratio 2 / 128KB</td>
+          <td>ZRAM Compression</td>
+          <td style="color:var(--accent-game);">ZSTD 4GB (P32767)</td>
+          <td style="color:var(--accent-daily);">ZSTD 4GB (P32767)</td>
+          <td style="color:var(--accent-battery);">ZSTD 4GB (P32767)</td>
         </tr>
         <tr>
-          <td>OOM Score Adj</td>
-          <td style="color:var(--accent-game);">-900 (Immune)</td>
-          <td>Normal</td>
-          <td>Normal</td>
+          <td>LMKD Kill Floor</td>
+          <td style="color:var(--accent-game); color:var(--accent-game);">Adj 201 (Protected)</td>
+          <td>Normal (0)</td>
+          <td>Normal (0)</td>
         </tr>
       </tbody>
     </table>
@@ -802,13 +827,23 @@
       const ramTot = stateData.ram_total || 3674;
       const ramFree = stateData.ram_free || 0;
       document.getElementById('ramVal').innerText = (ramUsed / 1024).toFixed(1) + ' / ' + (ramTot / 1024).toFixed(1) + ' GB';
-      document.getElementById('ramFreeLabel').innerText = ramFree + ' MB free';
+      document.getElementById('ramFreeLabel').innerText = (ramFree >= 1024 ? (ramFree / 1024).toFixed(1) + ' GB' : ramFree + ' MB') + ' free';
       document.getElementById('ramBar').style.width = Math.min(100, Math.round((ramUsed / ramTot) * 100)) + '%';
 
       const swapUsed = stateData.swap_used || 0;
-      const swapTot = stateData.swap_total || 3583;
-      document.getElementById('swapVal').innerText = (swapTot / 1024).toFixed(1) + ' GB';
-      document.getElementById('zramValLabel').innerText = swapUsed + ' / ' + swapTot + ' MB';
+      const swapTot = stateData.swap_total || 4096;
+      const swapFree = Math.max(0, swapTot - swapUsed);
+      const swapAlg = stateData.swap_alg || 'ZSTD';
+
+      const zramLabel = document.getElementById('zramAlgLabel');
+      if (zramLabel) zramLabel.innerText = 'ZRAM (' + swapAlg + ')';
+
+      const swapUsedText = swapUsed >= 1024 ? (swapUsed / 1024).toFixed(1) + ' GB' : swapUsed + ' MB';
+      const swapTotText = (swapTot / 1024).toFixed(1) + ' GB';
+      document.getElementById('swapVal').innerText = swapUsedText + ' / ' + swapTotText;
+
+      const swapFreeText = swapFree >= 1024 ? (swapFree / 1024).toFixed(1) + ' GB' : swapFree + ' MB';
+      document.getElementById('zramValLabel').innerText = swapFreeText + ' free';
       document.getElementById('swapBar').style.width = Math.min(100, Math.round((swapUsed / (swapTot || 1)) * 100)) + '%';
 
       document.getElementById('cpuVal').innerText = ((stateData.cpu_little_mhz || 1200) / 1000).toFixed(2) + ' / ' + ((stateData.cpu_big_mhz || 1600) / 1000).toFixed(2) + ' GHz';
@@ -874,6 +909,9 @@
         card.className = 'app-card' + (isCurrentFocused ? ' focused' : '');
 
         const initial = app.label.charAt(0).toUpperCase();
+        const isGame = app.mode === 'game';
+        const isBalance = app.mode === 'balance';
+        const isBattery = app.mode === 'battery';
 
         card.innerHTML = `
           <div class="app-left">
@@ -884,14 +922,20 @@
               <div class="app-avatar ${app.mode}" style="display: none; position: absolute; top: 0; left: 0; width: 36px; height: 36px;">${initial}</div>
             </div>
             <div class="app-meta">
-              <div class="app-name">${app.label} ${isCurrentFocused ? '<span style="font-size:9px; background:var(--accent-game); color:#000; padding:1px 6px; border-radius:10px; font-weight:700;">RUNNING</span>' : ''}</div>
+              <div class="app-name">${app.label}</div>
               <div class="app-pkg">${app.pkg}</div>
             </div>
           </div>
           <div class="app-modes">
-            <button class="app-mode-btn ${app.mode === 'game' ? 'active game' : ''}" onclick="changeAppMode('${app.pkg}', 'game')">Game</button>
-            <button class="app-mode-btn ${app.mode === 'balance' ? 'active balance' : ''}" onclick="changeAppMode('${app.pkg}', 'balance')">Daily</button>
-            <button class="app-mode-btn ${app.mode === 'battery' ? 'active battery' : ''}" onclick="changeAppMode('${app.pkg}', 'battery')">Battery</button>
+            <button class="app-mode-btn ${isGame ? 'active game' : ''}" onclick="changeAppMode('${app.pkg}', 'game')" title="Game Mode">
+              <span>🎮</span>${isGame ? '<span class="mode-lbl">Game</span>' : ''}
+            </button>
+            <button class="app-mode-btn ${isBalance ? 'active balance' : ''}" onclick="changeAppMode('${app.pkg}', 'balance')" title="Daily Balanced">
+              <span>⚖️</span>${isBalance ? '<span class="mode-lbl">Daily</span>' : ''}
+            </button>
+            <button class="app-mode-btn ${isBattery ? 'active battery' : ''}" onclick="changeAppMode('${app.pkg}', 'battery')" title="Battery Saver">
+              <span>🔋</span>${isBattery ? '<span class="mode-lbl">Eco</span>' : ''}
+            </button>
           </div>
         `;
         container.appendChild(card);

@@ -341,6 +341,9 @@ get_state_json() {
     local wake=$(dumpsys power 2>/dev/null | grep -i 'mWakefulness=' | head -n 1 | cut -d'=' -f2)
     [ -z "$wake" ] && wake="Awake"
 
+    local swap_alg=$(grep -o '\[[a-z0-9]*\]' "${SYS_ZRAM}/comp_algorithm" 2>/dev/null | tr -d '[]' | tr '[:lower:]' '[:upper:]')
+    [ -z "$swap_alg" ] && swap_alg="ZSTD"
+
     cat << EOF
 {
   "current_mode": "${cur_mode}",
@@ -351,6 +354,7 @@ get_state_json() {
   "ram_free": ${ram_free:-0},
   "swap_total": ${swap_total:-0},
   "swap_used": ${swap_used:-0},
+  "swap_alg": "${swap_alg}",
   "cpu_little_mhz": $((cpu_lit / 1000)),
   "cpu_big_mhz": $((cpu_big / 1000)),
   "gpu_mhz": ${gpu_mhz:-0},
