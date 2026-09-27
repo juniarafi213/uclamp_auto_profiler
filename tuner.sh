@@ -78,6 +78,28 @@ protect_game() {
     done
 }
 
+set_bypass() {
+    local enable="$1"
+    local node="/sys/class/power_supply/battery/input_suspend"
+    [ ! -e "$node" ] && return 1
+
+    if [ "$enable" = "1" ] || [ "$enable" = "true" ] || [ "$enable" = "on" ]; then
+        # Check if USB power is connected
+        local usb_v=$(cat /sys/class/power_supply/usb/voltage_now 2>/dev/null || echo 0)
+        local usb_online=$(cat /sys/class/power_supply/usb/online 2>/dev/null || echo 0)
+        local pc_online=$(cat /sys/class/power_supply/pc_port/online 2>/dev/null || echo 0)
+        local bat_st=$(cat /sys/class/power_supply/battery/status 2>/dev/null || echo "")
+
+        if [ "$usb_v" -gt 4000000 ] || [ "$usb_online" = "1" ] || [ "$pc_online" = "1" ] || [ "$bat_st" = "Charging" ] || [ "$bat_st" = "Full" ] || [ "$bat_st" = "Not charging" ]; then
+            echo 1 > "$node" 2>/dev/null
+            log "Game Bypass Charging ACTIVATED (hardware input_suspend = 1)"
+        fi
+    else
+        echo 0 > "$node" 2>/dev/null
+        log "Game Bypass Charging DEACTIVATED (hardware input_suspend = 0)"
+    fi
+}
+
 show_toast_popup() {
     # Check if disabled in config
     if [ -f "$CONFIG_FILE" ]; then
@@ -180,6 +202,17 @@ apply_game() {
     echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
     [ -n "$pkg" ] && protect_game "$pkg"
 
+    # 8. Trigger Bypass Charging if enabled & connected
+    local bypass_cfg=true
+    if [ -f "$CONFIG_FILE" ]; then
+        if grep -q '"game_bypass_charging": false' "$CONFIG_FILE" 2>/dev/null; then
+            bypass_cfg=false
+        fi
+    fi
+    if [ "$bypass_cfg" = "true" ]; then
+        set_bypass 1
+    fi
+
     echo "game" > "${DATA_DIR}/current_mode"
     log "Profile switched to GAME (pkg: ${pkg:-manual})"
 
@@ -188,6 +221,9 @@ apply_game() {
 
 apply_balance() {
     local pkg="$1"
+
+    # Disable Bypass Charging when leaving Game Mode
+    set_bypass 0
 
     # 1. CPU CASS & UCLAMP
     sysctl -w kernel.sched_util_clamp_min_rt_default=96 >/dev/null 2>&1
@@ -241,6 +277,9 @@ apply_balance() {
 
 apply_battery() {
     local pkg="$1"
+
+    # Disable Bypass Charging when leaving Game Mode
+    set_bypass 0
 
     # 1. CPU CASS & UCLAMP
     sysctl -w kernel.sched_util_clamp_min_rt_default=64 >/dev/null 2>&1
@@ -327,6 +366,12 @@ get_state_json() {
     local swap_alg=$(grep -o '\[[a-z0-9]*\]' "${SYS_ZRAM}/comp_algorithm" 2>/dev/null | tr -d '[]' | tr '[:lower:]' '[:upper:]')
     [ -z "$swap_alg" ] && swap_alg="ZSTD"
 
+    local bypass_act="false"
+    [ "$(cat /sys/class/power_supply/battery/input_suspend 2>/dev/null)" = "1" ] && bypass_act="true"
+    local usb_online=$(cat /sys/class/power_supply/usb/online 2>/dev/null || cat /sys/class/power_supply/pc_port/online 2>/dev/null || echo 0)
+    local usb_conn="false"
+    [ "$usb_online" = "1" ] && usb_conn="true"
+
     cat << EOF
 {
   "current_mode": "${cur_mode}",
@@ -345,6 +390,8 @@ get_state_json() {
   "battery_level": ${bat_lvl:-0},
   "battery_status": ${bat_st:-1},
   "is_charging": ${is_chg},
+  "is_usb_connected": ${usb_conn},
+  "bypass_active": ${bypass_act},
   "wakefulness": "${wake}"
 }
 EOF
@@ -513,6 +560,13 @@ show_status() {
     echo ""
     echo "[-] UCLAMP Top-App :"
     echo "    min: $(cat /dev/cpuset/top-app/uclamp.min 2>/dev/null)  max: $(cat /dev/cpuset/top-app/uclamp.max 2>/dev/null)  boost: $(cat /dev/cpuset/top-app/uclamp.boosted 2>/dev/null)  ls: $(cat /dev/cpuset/top-app/uclamp.latency_sensitive 2>/dev/null)"
+    echo ""
+    local bypass_st="DISABLED"
+    [ "$(cat /sys/class/power_supply/battery/input_suspend 2>/dev/null)" = "1" ] && bypass_st="ACTIVE (⚡ Hardware Direct Power)"
+    local bat_lvl=$(dumpsys battery 2>/dev/null | awk '$1 == "level:" {print $2}')
+    echo "[-] Power & Battery:"
+    echo "    Bypass Charging: ${bypass_st}"
+    echo "    Battery Level  : ${bat_lvl:-0}%"
     echo "=========================================================="
 }
 
@@ -571,6 +625,9 @@ case "$1" in
         ;;
     restart_daemon)
         restart_daemon
+        ;;
+    set_bypass|bypass)
+        set_bypass "$2"
         ;;
     balance|*)
         apply_balance "$2"

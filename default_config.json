@@ -4,6 +4,7 @@
   "check_interval_sec": 2,
   "screen_off_powersave": true,
   "toast_notifications": true,
+  "game_bypass_charging": true,
   "battery_saver_trigger": true,
   "battery_saver_level": 20,
   "game_apps": [

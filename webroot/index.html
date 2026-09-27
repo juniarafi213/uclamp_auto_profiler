@@ -621,11 +621,14 @@
     <button class="btn-action" onclick="restartDaemon()">
       <span>🔄</span> Restart Daemon
     </button>
-    <button class="btn-action" onclick="promptCustomApp()">
-      <span>➕</span> Add App
-    </button>
     <button class="btn-action" id="btnToggleToast" onclick="toggleToastSetting()">
       <span id="toastIcon">🔔</span> <span id="toastLabel">Popup: ON</span>
+    </button>
+    <button class="btn-action" id="btnToggleBypass" onclick="toggleBypassSetting()">
+      <span id="bypassIcon">⚡</span> <span id="bypassLabel">Bypass: ON</span>
+    </button>
+    <button class="btn-action" style="grid-column: span 2;" onclick="promptCustomApp()">
+      <span>➕</span> Add Custom Application
     </button>
   </div>
 
@@ -748,6 +751,7 @@
     let currentFilter = 'all';
     let globalForcedMode = 'auto';
     let toastEnabled = true;
+    let bypassEnabled = true;
 
     function updateToastButton() {
       const icon = document.getElementById('toastIcon');
@@ -758,12 +762,32 @@
       }
     }
 
+    function updateBypassButton() {
+      const icon = document.getElementById('bypassIcon');
+      const lbl = document.getElementById('bypassLabel');
+      if (icon && lbl) {
+        icon.innerText = bypassEnabled ? '⚡' : '🔌';
+        lbl.innerText = 'Bypass: ' + (bypassEnabled ? 'ON' : 'OFF');
+      }
+    }
+
     async function toggleToastSetting() {
       toastEnabled = !toastEnabled;
       configData.toast_notifications = toastEnabled;
       updateToastButton();
       await exec(`echo '${JSON.stringify(configData)}' > /data/adb/uclamp_profiler/config.json`);
       showToast("Toast Popups " + (toastEnabled ? "Enabled" : "Disabled"));
+    }
+
+    async function toggleBypassSetting() {
+      bypassEnabled = !bypassEnabled;
+      configData.game_bypass_charging = bypassEnabled;
+      updateBypassButton();
+      await exec(`echo '${JSON.stringify(configData)}' > /data/adb/uclamp_profiler/config.json`);
+      if (stateData.current_mode === 'game') {
+        await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh set_bypass ${bypassEnabled ? 1 : 0}`);
+      }
+      showToast("Game Bypass " + (bypassEnabled ? "Enabled" : "Disabled"));
     }
 
     async function loadData() {
@@ -776,7 +800,9 @@
           appsData = parsed.apps || [];
           globalForcedMode = configData.forced_mode || 'auto';
           toastEnabled = (configData.toast_notifications !== false);
+          bypassEnabled = (configData.game_bypass_charging !== false);
           updateToastButton();
+          updateBypassButton();
           updateDashboard();
           renderAppList();
         }
@@ -850,7 +876,12 @@
       document.getElementById('gpuVal').innerText = (stateData.gpu_mhz || 342) + ' MHz';
       document.getElementById('gpuPwrLabel').innerText = 'Pwr: ' + (stateData.gpu_pwrlevel || 6);
 
-      const isChg = stateData.is_charging ? '⚡ Charging' : '';
+      let isChg = '';
+      if (stateData.bypass_active) {
+        isChg = '⚡ Bypass Active';
+      } else if (stateData.is_charging) {
+        isChg = '⚡ Charging';
+      }
       document.getElementById('batteryLabel').innerText = 'Battery: ' + (stateData.battery_level || 0) + '% ' + isChg;
 
       // Daemon status

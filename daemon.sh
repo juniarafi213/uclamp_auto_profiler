@@ -114,6 +114,21 @@ while true; do
                 fi
             fi
         done
+
+        # Ensure bypass charging is active if plugged in while gaming
+        local bypass_cfg=true
+        if [ -f "$CONFIG_FILE" ]; then
+            if grep -q '"game_bypass_charging": false' "$CONFIG_FILE" 2>/dev/null; then
+                bypass_cfg=false
+            fi
+        fi
+        if [ "$bypass_cfg" = "true" ]; then
+            local usb_v=$(cat /sys/class/power_supply/usb/voltage_now 2>/dev/null || echo 0)
+            local cur_suspend=$(cat /sys/class/power_supply/battery/input_suspend 2>/dev/null || echo 0)
+            if [ "$usb_v" -gt 4000000 ] && [ "$cur_suspend" != "1" ]; then
+                sh "$TUNER" set_bypass 1
+            fi
+        fi
     fi
 
     last_pkg="$pkg"

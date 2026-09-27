@@ -24,6 +24,12 @@ Includes a fully responsive, self-contained **WebUI** inside **KernelSU Next** w
   - Tactile haptic vibration patterns per profile (e.g., dual pulse when entering games).
   - Pure toast output with zero shell notification clutter in the status bar.
 
+- ⚡ **Hardware Bypass Charging (Direct Power Delivery)**:
+  - Automatically engages hardware bypass charging when entering Game Mode while plugged in (`input_suspend = 1`).
+  - Powers device components directly from USB charger via Qualcomm PMI8998 PMIC without charging battery cell.
+  - Prevents battery thermal build-up and preserves long-term battery lifespan while gaming.
+  - Configurable toggle switch directly inside the KernelSU Next WebUI (`Bypass: ON / OFF`).
+
 - 🎮 **Game Mode (Max Performance & RAM Protection)**:
   - Purges caches (`drop_caches`) on launch to free up to 1.8 GB of physical RAM.
   - Grants game processes immunity from Android LMKD (`oom_score_adj = -900`).
