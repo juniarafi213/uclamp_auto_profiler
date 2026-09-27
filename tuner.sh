@@ -37,18 +37,23 @@ set_uclamp() {
 }
 
 setup_zram() {
-    local target_mb="${1:-3584}"
+    local target_mb="${1:-4096}"
     local current_mb=$(awk '{print int($1/1048576)}' "${SYS_ZRAM}/disksize" 2>/dev/null || echo 0)
+    local current_alg=$(grep -o '\[[a-z0-9]*\]' "${SYS_ZRAM}/comp_algorithm" 2>/dev/null | tr -d '[]')
 
-    # If swap is active and sized >= target_mb - 256MB, skip
-    if [ "$current_mb" -ge "$((target_mb - 256))" ] && grep -q "zram0" /proc/swaps 2>/dev/null; then
+    # If swap is active and sized >= target_mb - 256MB and using zstd, skip
+    if [ "$current_mb" -ge "$((target_mb - 256))" ] && [ "$current_alg" = "zstd" ] && grep -q "zram0" /proc/swaps 2>/dev/null; then
         return 0
     fi
 
-    if [ "$current_mb" -lt "$((target_mb - 256))" ]; then
+    if [ "$current_mb" -lt "$((target_mb - 256))" ] || [ "$current_alg" != "zstd" ]; then
         swapoff /dev/block/zram0 2>/dev/null
         echo 1 > "${SYS_ZRAM}/reset" 2>/dev/null
-        echo lz4 > "${SYS_ZRAM}/comp_algorithm" 2>/dev/null
+        if grep -q "zstd" "${SYS_ZRAM}/comp_algorithm" 2>/dev/null; then
+            echo zstd > "${SYS_ZRAM}/comp_algorithm" 2>/dev/null
+        else
+            echo lz4 > "${SYS_ZRAM}/comp_algorithm" 2>/dev/null
+        fi
         echo "${target_mb}M" > "${SYS_ZRAM}/disksize" 2>/dev/null
         mkswap /dev/block/zram0 >/dev/null 2>&1
         swapon /dev/block/zram0 -p 32767 >/dev/null 2>&1
@@ -63,8 +68,10 @@ protect_game() {
     [ -z "$target_pkg" ] && return
     for pid in $(pidof "$target_pkg" 2>/dev/null); do
         if [ -d "/proc/$pid" ]; then
-            echo -900 > "/proc/$pid/oom_score_adj" 2>/dev/null
+            chmod 666 "/proc/$pid/oom_score_adj" 2>/dev/null
+            echo -1000 > "/proc/$pid/oom_score_adj" 2>/dev/null
             echo -17 > "/proc/$pid/oom_adj" 2>/dev/null
+            chmod 444 "/proc/$pid/oom_score_adj" 2>/dev/null
             echo "$pid" > "${CPUSET}/top-app/tasks" 2>/dev/null
             renice -n -20 -p "$pid" 2>/dev/null
         fi
@@ -134,12 +141,14 @@ apply_game() {
     echo 4 > "${SYS_GPU}/default_pwrlevel" 2>/dev/null
     echo 80 > "${SYS_GPU}/idle_timer" 2>/dev/null
 
-    # 4. Virtual Memory & ZRAM
-    setup_zram 3584
-    sysctl -w vm.swappiness=160 >/dev/null 2>&1
-    sysctl -w vm.watermark_scale_factor=30 >/dev/null 2>&1
-    sysctl -w vm.vfs_cache_pressure=150 >/dev/null 2>&1
-    sysctl -w vm.dirty_ratio=10 >/dev/null 2>&1
+    # 4. Virtual Memory & ZRAM (zstd 4GB + Aggressive Swapping)
+    setup_zram 4096
+    sysctl -w vm.swappiness=180 >/dev/null 2>&1
+    sysctl -w vm.watermark_scale_factor=150 >/dev/null 2>&1
+    sysctl -w vm.vfs_cache_pressure=60 >/dev/null 2>&1
+    sysctl -w vm.min_free_kbytes=32768 >/dev/null 2>&1
+    sysctl -w vm.extra_free_kbytes=32768 >/dev/null 2>&1
+    sysctl -w vm.dirty_ratio=15 >/dev/null 2>&1
     sysctl -w vm.dirty_background_ratio=5 >/dev/null 2>&1
     sysctl -w vm.page-cluster=0 >/dev/null 2>&1
     if [ -f "/proc/sys/vm/workingset_protection" ]; then
@@ -148,12 +157,19 @@ apply_game() {
         echo 10 > /proc/sys/vm/clean_low_ratio 2>/dev/null
     fi
 
-    # 5. I/O Anxiety Scheduler
+    # 5. Disable LMKD Thrashing Kills (prevents killing foreground games during teleport/load)
+    device_config put lmkd_native thrashing_limit_critical 0 >/dev/null 2>&1
+    device_config put lmkd_native thrashing_limit 0 >/dev/null 2>&1
+    setprop ro.lmk.thrashing_limit_critical 0 2>/dev/null
+    setprop sys.lmk.minfree_levels '2048:0,4096:100,8192:200,16384:250,32768:900,49152:950' 2>/dev/null
+    setprop lmkd.reinit 1 2>/dev/null
+
+    # 6. I/O Anxiety Scheduler
     echo anxiety > "${SYS_SDA}/queue/scheduler" 2>/dev/null
     echo 8 > "${SYS_SDA}/queue/iosched/sync_ratio" 2>/dev/null
     echo 1024 > "${SYS_SDA}/queue/read_ahead_kb" 2>/dev/null
 
-    # 6. Drop cache & protect
+    # 7. Drop cache & protect game process with OOM -1000
     sync
     echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
     [ -n "$pkg" ] && protect_game "$pkg"

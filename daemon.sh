@@ -104,10 +104,13 @@ while true; do
         for pid in $(pidof "$pkg" 2>/dev/null); do
             if [ -d "/proc/$pid" ]; then
                 cur_adj=$(cat "/proc/$pid/oom_score_adj" 2>/dev/null)
-                if [ "$cur_adj" != "-900" ]; then
-                    echo -900 > "/proc/$pid/oom_score_adj" 2>/dev/null
+                if [ "$cur_adj" != "-1000" ]; then
+                    chmod 666 "/proc/$pid/oom_score_adj" 2>/dev/null
+                    echo -1000 > "/proc/$pid/oom_score_adj" 2>/dev/null
                     echo -17 > "/proc/$pid/oom_adj" 2>/dev/null
+                    chmod 444 "/proc/$pid/oom_score_adj" 2>/dev/null
                     echo "$pid" > /dev/cpuset/top-app/tasks 2>/dev/null
+                    renice -n -20 -p "$pid" 2>/dev/null
                 fi
             fi
         done
