@@ -80,13 +80,28 @@ show_toast_popup() {
     fi
     local title="$1"
     local msg="$2"
+    local mode="${3:-}"
     local runas="${MODDIR}/system/bin/runas_shell"
 
-    if [ -x "$runas" ]; then
-        "$runas" /system/bin/cmd notification post -t "$title" -i @android:drawable/stat_notify_sync -S bigtext uclamp_mode "$msg" >/dev/null 2>&1
-        (sleep 4 && "$runas" /system/bin/cmd notification snooze --for 86400000 "0|com.android.shell|2020|uclamp_mode|2000" >/dev/null 2>&1) </dev/null >/dev/null 2>&1 &
+    # Distinct Haptic feedback per mode
+    if [ "$mode" = "game" ]; then
+        # Double pulse for Game Mode (100ms on, 100ms pause, 140ms on)
+        (
+            cmd vibrator_manager synced oneshot 100 >/dev/null 2>&1
+            sleep 0.1
+            cmd vibrator_manager synced oneshot 140 >/dev/null 2>&1
+        ) &
+    elif [ "$mode" = "battery" ]; then
+        cmd vibrator_manager synced oneshot 40 >/dev/null 2>&1 &
     else
-        /system/bin/cmd notification post -t "$title" -i @android:drawable/stat_notify_sync -S bigtext uclamp_mode "$msg" >/dev/null 2>&1
+        cmd vibrator_manager synced oneshot 60 >/dev/null 2>&1 &
+    fi
+
+    # Post notification via runas_shell (UID 2000 shell) or cmd directly
+    if [ -x "$runas" ]; then
+        "$runas" /system/bin/cmd notification post -t "$title" -i @android:drawable/stat_notify_sync -S bigtext uclamp_mode "$msg" >/dev/null 2>&1 &
+    else
+        /system/bin/cmd notification post -t "$title" -i @android:drawable/stat_notify_sync -S bigtext uclamp_mode "$msg" >/dev/null 2>&1 &
     fi
 }
 
@@ -159,7 +174,7 @@ apply_game() {
         tw.nekomimi.nekogram) app_lbl="Nekogram" ;;
         *) [ -n "$pkg" ] && app_lbl=$(echo "$pkg" | awk -F. '{print $NF}' | sed 's/^[a-z]/\U&/') ;;
     esac
-    show_toast_popup "🎮 UCLAMP: GAME MODE" "Activated for $app_lbl (Max Boost & RAM Protection)"
+    show_toast_popup "🎮 UCLAMP: GAME MODE" "Activated for $app_lbl (Max Boost & RAM Protection)" "game"
 }
 
 apply_balance() {
@@ -212,7 +227,7 @@ apply_balance() {
 
     echo "balance" > "${DATA_DIR}/current_mode"
     log "Profile switched to BALANCE (pkg: ${pkg:-manual})"
-    show_toast_popup "⚖️ UCLAMP: BALANCED" "Daily Smoothness & Efficiency Active"
+    show_toast_popup "⚖️ UCLAMP: BALANCED" "Daily Smoothness & Efficiency Active" "balance"
 }
 
 apply_battery() {
@@ -256,7 +271,7 @@ apply_battery() {
 
     echo "battery" > "${DATA_DIR}/current_mode"
     log "Profile switched to BATTERY (pkg: ${pkg:-manual})"
-    show_toast_popup "🔋 UCLAMP: BATTERY SAVER" "Power Saving & Cool Temp Active"
+    show_toast_popup "🔋 UCLAMP: BATTERY SAVER" "Power Saving & Cool Temp Active" "battery"
 }
 
 purge_ram() {
