@@ -19,6 +19,11 @@ Includes a fully responsive, self-contained **WebUI** inside **KernelSU Next** w
   - Monitors screen wakefulness (`Awake` / `Dozing` / `Asleep`) to drop hardware clocks when the phone is locked.
   - Automatically triggers battery endurance mode when battery falls below threshold (<= 20%).
 
+- 🔔 **Instant On-Screen Mode Popups & Haptics**:
+  - Displays instant transparent Android toast popups directly over full-screen games when profiles switch (`Game Mode`, `Daily`, `Battery`).
+  - Tactile haptic vibration patterns per profile (e.g., dual pulse when entering games).
+  - Persistent fallback in the notification shade.
+
 - 🎮 **Game Mode (Max Performance & RAM Protection)**:
   - Purges caches (`drop_caches`) on launch to free up to 1.8 GB of physical RAM.
   - Grants game processes immunity from Android LMKD (`oom_score_adj = -900`).

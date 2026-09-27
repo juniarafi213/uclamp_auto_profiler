@@ -9,6 +9,11 @@ while [ "$(getprop sys.boot_completed)" != "1" ]; do
 done
 sleep 3
 
+# Auto-repair Toast Popup helper if missing
+if ! pm path bellavita.toast >/dev/null 2>&1 && [ -f "${MODDIR}/toast.apk" ]; then
+    pm install -r "${MODDIR}/toast.apk" >/dev/null 2>&1
+fi
+
 # Enforce LMKD Anti-Kill properties for SDM845
 if [ -x "/data/adb/ksu/bin/resetprop" ]; then
     /data/adb/ksu/bin/resetprop persist.device_config.lmkd_native.swap_free_low_percentage 0 >/dev/null 2>&1

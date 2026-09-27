@@ -7,4 +7,7 @@ if [ -f "$PID_FILE" ]; then
     [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null
 fi
 
+# Clean up Toast Popup helper APK
+pm uninstall bellavita.toast >/dev/null 2>&1
+
 rm -rf "$DATA_DIR"

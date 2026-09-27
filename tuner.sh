@@ -104,6 +104,13 @@ show_toast_popup() {
         cmd vibrator_manager synced oneshot 60 >/dev/null 2>&1 &
     fi
 
+    # Show real on-screen Toast Popup via bellavita.toast
+    local toast_text="${title}
+${msg}"
+    if pm path bellavita.toast >/dev/null 2>&1; then
+        am start -n bellavita.toast/.MainActivity -a android.intent.action.MAIN -e toasttext "$toast_text" >/dev/null 2>&1 &
+    fi
+
     # Post notification via runas_shell (UID 2000 shell) or cmd directly
     if [ -x "$runas" ]; then
         "$runas" /system/bin/cmd notification post -t "$title" -i @android:drawable/stat_notify_sync -S bigtext uclamp_mode "$msg" >/dev/null 2>&1 &
