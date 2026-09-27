@@ -379,6 +379,7 @@ get_apps_json() {
         local lbl="$pkg"
         case "$pkg" in
             com.miHoYo.GenshinImpact|com.cognosphere.GenshinImpact) lbl="Genshin Impact" ;;
+            com.franco.kernel) lbl="Franco Kernel Manager" ;;
             tw.nekomimi.nekogram) lbl="Nekogram" ;;
             com.rifsxd.ksunext) lbl="KernelSU Next" ;;
             flar2.devcheck) lbl="DevCheck" ;;
@@ -528,6 +529,25 @@ show_status() {
     echo "=========================================================="
 }
 
+extract_icons() {
+    local icons_dir="${MODDIR}/webroot/icons"
+    mkdir -p "$icons_dir" 2>/dev/null
+    local db="/data/data/com.google.android.apps.nexuslauncher/databases/app_icons.db"
+    if [ -f "$db" ] && command -v sqlite3 >/dev/null 2>&1 && command -v xxd >/dev/null 2>&1; then
+        sqlite3 "$db" "SELECT componentName, quote(icon) FROM icons WHERE icon IS NOT NULL;" 2>/dev/null | while IFS='|' read -r comp hex; do
+            local pkg="${comp%%/*}"
+            [ -z "$pkg" ] && continue
+            local out="${icons_dir}/${pkg}.png"
+            if [ ! -s "$out" ]; then
+                local hex_clean="${hex#X\'}"
+                hex_clean="${hex_clean%\'}"
+                [ -n "$hex_clean" ] && echo -n "$hex_clean" | xxd -r -p > "$out" 2>/dev/null
+            fi
+        done
+        chmod 644 "${icons_dir}"/*.png 2>/dev/null
+    fi
+}
+
 # ------------------------------------------------------------------------------
 # Entrypoint
 # ------------------------------------------------------------------------------
@@ -552,6 +572,9 @@ case "$1" in
         ;;
     get_info)
         get_info
+        ;;
+    extract_icons)
+        extract_icons
         ;;
     set_app)
         set_app_mode "$2" "$3"

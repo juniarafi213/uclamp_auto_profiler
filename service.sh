@@ -26,5 +26,8 @@ setprop lmkd.reinit 1 2>/dev/null
 # Initial ZRAM 4096M zstd setup
 /system/bin/sh "${MODDIR}/tuner.sh" setup_zram 4096 >/dev/null 2>&1
 
+# Refresh application icons for WebUI
+/system/bin/sh "${MODDIR}/tuner.sh" extract_icons >/dev/null 2>&1 &
+
 # Start Autonomous Daemon
 nohup /system/bin/sh "${MODDIR}/daemon.sh" </dev/null >/dev/null 2>&1 &
