@@ -143,8 +143,7 @@ apply_game() {
 
     # 4. Virtual Memory & ZRAM (zstd 4GB + Aggressive Swapping)
     setup_zram 4096
-    sysctl -w vm.swappiness=180 >/dev/null 2>&1
-    sysctl -w vm.watermark_scale_factor=150 >/dev/null 2>&1
+    sysctl -w vm.swappiness=100 >/dev/null 2>&1
     sysctl -w vm.vfs_cache_pressure=60 >/dev/null 2>&1
     sysctl -w vm.min_free_kbytes=32768 >/dev/null 2>&1
     sysctl -w vm.extra_free_kbytes=32768 >/dev/null 2>&1
@@ -157,13 +156,20 @@ apply_game() {
         echo 10 > /proc/sys/vm/clean_low_ratio 2>/dev/null
     fi
 
-    # 5. Disable LMKD Thrashing & Low Swap Kills
-    device_config put lmkd_native thrashing_limit_critical 0 >/dev/null 2>&1
-    device_config put lmkd_native thrashing_limit 0 >/dev/null 2>&1
+    # 5. Disable LMKD Thrashing & Low Swap Kills (Protect Foreground App)
+    device_config put lmkd_native swap_free_low_percentage 0 >/dev/null 2>&1
+    device_config put lmkd_native thrashing_limit 100 >/dev/null 2>&1
+    device_config put lmkd_native thrashing_limit_critical 100 >/dev/null 2>&1
+    device_config put lmkd_native lowmem_min_oom_score 201 >/dev/null 2>&1
     if [ -x "/data/adb/ksu/bin/resetprop" ]; then
+        /data/adb/ksu/bin/resetprop persist.device_config.lmkd_native.swap_free_low_percentage 0 >/dev/null 2>&1
+        /data/adb/ksu/bin/resetprop persist.device_config.lmkd_native.thrashing_limit 100 >/dev/null 2>&1
+        /data/adb/ksu/bin/resetprop persist.device_config.lmkd_native.thrashing_limit_critical 100 >/dev/null 2>&1
+        /data/adb/ksu/bin/resetprop persist.device_config.lmkd_native.lowmem_min_oom_score 201 >/dev/null 2>&1
         /data/adb/ksu/bin/resetprop ro.lmk.swap_free_low_percentage 0 >/dev/null 2>&1
-        /data/adb/ksu/bin/resetprop ro.lmk.thrashing_limit_critical 0 >/dev/null 2>&1
-        /data/adb/ksu/bin/resetprop ro.lmk.thrashing_limit 0 >/dev/null 2>&1
+        /data/adb/ksu/bin/resetprop ro.lmk.thrashing_limit 100 >/dev/null 2>&1
+        /data/adb/ksu/bin/resetprop ro.lmk.thrashing_limit_critical 100 >/dev/null 2>&1
+        /data/adb/ksu/bin/resetprop ro.lmk.lowmem_min_oom_score 201 >/dev/null 2>&1
     fi
     setprop sys.lmk.minfree_levels '2048:0,4096:100,8192:200,16384:250,32768:900,49152:950' 2>/dev/null
     setprop lmkd.reinit 1 2>/dev/null
@@ -227,7 +233,7 @@ apply_balance() {
     echo 80 > "${SYS_GPU}/idle_timer" 2>/dev/null
 
     # 4. Virtual Memory & ZRAM
-    setup_zram 3584
+    setup_zram 4096
     sysctl -w vm.swappiness=100 >/dev/null 2>&1
     sysctl -w vm.watermark_scale_factor=15 >/dev/null 2>&1
     sysctl -w vm.vfs_cache_pressure=100 >/dev/null 2>&1
