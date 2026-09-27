@@ -71,6 +71,25 @@ protect_game() {
     done
 }
 
+show_toast_popup() {
+    # Check if disabled in config
+    if [ -f "$CONFIG_FILE" ]; then
+        if grep -q '"toast_notifications": false' "$CONFIG_FILE" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    local title="$1"
+    local msg="$2"
+    local runas="${MODDIR}/system/bin/runas_shell"
+
+    if [ -x "$runas" ]; then
+        "$runas" /system/bin/cmd notification post -t "$title" -i @android:drawable/stat_notify_sync -S bigtext uclamp_mode "$msg" >/dev/null 2>&1
+        (sleep 4 && "$runas" /system/bin/cmd notification snooze --for 86400000 "0|com.android.shell|2020|uclamp_mode|2000" >/dev/null 2>&1) </dev/null >/dev/null 2>&1 &
+    else
+        /system/bin/cmd notification post -t "$title" -i @android:drawable/stat_notify_sync -S bigtext uclamp_mode "$msg" >/dev/null 2>&1
+    fi
+}
+
 apply_game() {
     local pkg="$1"
 
@@ -126,6 +145,21 @@ apply_game() {
 
     echo "game" > "${DATA_DIR}/current_mode"
     log "Profile switched to GAME (pkg: ${pkg:-manual})"
+
+    local app_lbl="Game"
+    case "$pkg" in
+        com.miHoYo.GenshinImpact|com.cognosphere.GenshinImpact) app_lbl="Genshin Impact" ;;
+        com.kurogame.wutheringwaves*) app_lbl="Wuthering Waves" ;;
+        com.mobile.legends) app_lbl="Mobile Legends" ;;
+        com.HoYoverse.hkrpg*) app_lbl="Honkai: Star Rail" ;;
+        com.HoYoverse.Nap*) app_lbl="Zenless Zone Zero" ;;
+        com.tencent.ig|com.pubg.krmobile) app_lbl="PUBG Mobile" ;;
+        com.dts.freefireth) app_lbl="Free Fire" ;;
+        com.activision.callofduty.shooter) app_lbl="Call of Duty" ;;
+        tw.nekomimi.nekogram) app_lbl="Nekogram" ;;
+        *) [ -n "$pkg" ] && app_lbl=$(echo "$pkg" | awk -F. '{print $NF}' | sed 's/^[a-z]/\U&/') ;;
+    esac
+    show_toast_popup "🎮 UCLAMP: GAME MODE" "Activated for $app_lbl (Max Boost & RAM Protection)"
 }
 
 apply_balance() {
@@ -178,6 +212,7 @@ apply_balance() {
 
     echo "balance" > "${DATA_DIR}/current_mode"
     log "Profile switched to BALANCE (pkg: ${pkg:-manual})"
+    show_toast_popup "⚖️ UCLAMP: BALANCED" "Daily Smoothness & Efficiency Active"
 }
 
 apply_battery() {
@@ -221,6 +256,7 @@ apply_battery() {
 
     echo "battery" > "${DATA_DIR}/current_mode"
     log "Profile switched to BATTERY (pkg: ${pkg:-manual})"
+    show_toast_popup "🔋 UCLAMP: BATTERY SAVER" "Power Saving & Cool Temp Active"
 }
 
 purge_ram() {

@@ -585,6 +585,9 @@
     <button class="btn-action" onclick="promptCustomApp()">
       <span>➕</span> Add App
     </button>
+    <button class="btn-action" id="btnToggleToast" onclick="toggleToastSetting()">
+      <span id="toastIcon">🔔</span> <span id="toastLabel">Popup: ON</span>
+    </button>
   </div>
 
   <!-- App Profiler Matrix -->
@@ -705,6 +708,24 @@
     let configData = {};
     let currentFilter = 'all';
     let globalForcedMode = 'auto';
+    let toastEnabled = true;
+
+    function updateToastButton() {
+      const icon = document.getElementById('toastIcon');
+      const lbl = document.getElementById('toastLabel');
+      if (icon && lbl) {
+        icon.innerText = toastEnabled ? '🔔' : '🔕';
+        lbl.innerText = 'Popup: ' + (toastEnabled ? 'ON' : 'OFF');
+      }
+    }
+
+    async function toggleToastSetting() {
+      toastEnabled = !toastEnabled;
+      configData.toast_notifications = toastEnabled;
+      updateToastButton();
+      await exec(`echo '${JSON.stringify(configData)}' > /data/adb/uclamp_profiler/config.json`);
+      showToast("Toast Popups " + (toastEnabled ? "Enabled" : "Disabled"));
+    }
 
     async function loadData() {
       try {
@@ -715,6 +736,8 @@
           configData = parsed.config || {};
           appsData = parsed.apps || [];
           globalForcedMode = configData.forced_mode || 'auto';
+          toastEnabled = (configData.toast_notifications !== false);
+          updateToastButton();
           updateDashboard();
           renderAppList();
         }
