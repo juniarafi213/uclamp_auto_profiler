@@ -4,7 +4,8 @@
 # Tailored for CASS + UCLAMP + Adreno 630 + Anxiety I/O + le9
 # ==============================================================================
 
-MODDIR="/data/adb/modules/uclamp_auto_profiler"
+MODDIR="${MODDIR:-/data/adb/modules/uclamp_auto_profiler}"
+[ -f "${0%/*}/bin/fas_governor" ] && MODDIR="${0%/*}"
 DATA_DIR="/data/adb/uclamp_profiler"
 CONFIG_FILE="${DATA_DIR}/config.json"
 STATE_FILE="${DATA_DIR}/state.json"
@@ -98,6 +99,53 @@ set_bypass() {
         echo 0 > "$node" 2>/dev/null
         log "Game Bypass Charging DEACTIVATED (hardware input_suspend = 0)"
     fi
+}
+
+start_fas() {
+    local pkg="$1"
+    local fps="${2:-60}"
+    [ ! -c "/dev/encore_fas" ] && return 0
+    [ ! -x "${MODDIR}/bin/fas_governor" ] && return 0
+    [ -z "$pkg" ] && return 0
+
+    # Read target FPS from config if not provided
+    if [ -z "$2" ] && [ -f "$CONFIG_FILE" ]; then
+        local cfg_fps=$(grep '"fas_target_fps":' "$CONFIG_FILE" 2>/dev/null | awk '{print $2}' | tr -d ',')
+        [ -n "$cfg_fps" ] && fps="$cfg_fps"
+    fi
+
+    local target_pid=$(pidof "$pkg" 2>/dev/null | awk '{print $1}')
+    if [ -z "$target_pid" ]; then
+        log "Encore FAS: Process for $pkg not running yet, waiting for daemon attach"
+        return 0
+    fi
+
+    if [ -f "${DATA_DIR}/fas_governor.pid" ]; then
+        local cur_fpid=$(cat "${DATA_DIR}/fas_governor.pid" 2>/dev/null)
+        if [ -n "$cur_fpid" ] && [ -d "/proc/$cur_fpid" ]; then
+            local cur_attached=$(grep '"pid":' "${DATA_DIR}/fas_state.json" 2>/dev/null | awk '{print $2}' | tr -d ',')
+            if [ "$cur_attached" = "$target_pid" ]; then
+                log "Encore FAS already running on PID $target_pid ($pkg)"
+                return 0
+            fi
+            stop_fas
+        fi
+    fi
+
+    log "Starting Encore FAS governor on PID $target_pid ($pkg) @ ${fps}fps"
+    nohup "${MODDIR}/bin/fas_governor" start "$target_pid" "$fps" "$pkg" </dev/null >/dev/null 2>&1 &
+}
+
+stop_fas() {
+    if [ -x "${MODDIR}/bin/fas_governor" ]; then
+        "${MODDIR}/bin/fas_governor" stop >/dev/null 2>&1
+    fi
+    if [ -f "${DATA_DIR}/fas_governor.pid" ]; then
+        local p=$(cat "${DATA_DIR}/fas_governor.pid" 2>/dev/null)
+        [ -n "$p" ] && kill -15 "$p" 2>/dev/null
+        rm -f "${DATA_DIR}/fas_governor.pid"
+    fi
+    log "Encore FAS governor stopped"
 }
 
 show_toast_popup() {
@@ -213,6 +261,17 @@ apply_game() {
         set_bypass 1
     fi
 
+    # 9. Hardware Frame Aware Scheduling (Encore FAS)
+    local fas_cfg=true
+    if [ -f "$CONFIG_FILE" ]; then
+        if grep -q '"encore_fas_enabled": false' "$CONFIG_FILE" 2>/dev/null; then
+            fas_cfg=false
+        fi
+    fi
+    if [ "$fas_cfg" = "true" ] && [ -n "$pkg" ]; then
+        start_fas "$pkg"
+    fi
+
     echo "game" > "${DATA_DIR}/current_mode"
     log "Profile switched to GAME (pkg: ${pkg:-manual})"
 
@@ -222,8 +281,9 @@ apply_game() {
 apply_balance() {
     local pkg="$1"
 
-    # Disable Bypass Charging when leaving Game Mode
+    # Disable Bypass Charging and stop Encore FAS when leaving Game Mode
     set_bypass 0
+    stop_fas
 
     # 1. CPU CASS & UCLAMP
     sysctl -w kernel.sched_util_clamp_min_rt_default=96 >/dev/null 2>&1
@@ -278,8 +338,9 @@ apply_balance() {
 apply_battery() {
     local pkg="$1"
 
-    # Disable Bypass Charging when leaving Game Mode
+    # Disable Bypass Charging and stop Encore FAS when leaving Game Mode
     set_bypass 0
+    stop_fas
 
     # 1. CPU CASS & UCLAMP
     sysctl -w kernel.sched_util_clamp_min_rt_default=64 >/dev/null 2>&1
@@ -372,6 +433,29 @@ get_state_json() {
     local usb_conn="false"
     [ "$usb_online" = "1" ] && usb_conn="true"
 
+    local has_fas=false
+    [ -c "/dev/encore_fas" ] && has_fas=true
+
+    local fas_act="false"
+    local fas_pid=0
+    local fas_pkg=""
+    local fas_fps=60
+    local fas_event="STOPPED"
+    local fas_boost=0
+    local fas_janks=0
+
+    local fas_state_f="${DATA_DIR}/fas_state.json"
+    if [ -f "$fas_state_f" ]; then
+        fas_act=$(grep '"active":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+        [ -z "$fas_act" ] && fas_act="false"
+        fas_pid=$(grep '"pid":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+        fas_pkg=$(grep '"pkg":' "$fas_state_f" 2>/dev/null | cut -d'"' -f4)
+        fas_fps=$(grep '"target_fps":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+        fas_event=$(grep '"last_event":' "$fas_state_f" 2>/dev/null | cut -d'"' -f4)
+        fas_boost=$(grep '"uclamp_boost":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+        fas_janks=$(grep '"jank_count":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+    fi
+
     cat << EOF
 {
   "current_mode": "${cur_mode}",
@@ -392,7 +476,15 @@ get_state_json() {
   "is_charging": ${is_chg},
   "is_usb_connected": ${usb_conn},
   "bypass_active": ${bypass_act},
-  "wakefulness": "${wake}"
+  "wakefulness": "${wake}",
+  "has_encore_fas": ${has_fas},
+  "fas_active": ${fas_act:-false},
+  "fas_pid": ${fas_pid:-0},
+  "fas_pkg": "${fas_pkg}",
+  "fas_target_fps": ${fas_fps:-60},
+  "fas_last_event": "${fas_event:-STOPPED}",
+  "fas_uclamp_boost": ${fas_boost:-0},
+  "fas_jank_count": ${fas_janks:-0}
 }
 EOF
 }
@@ -567,6 +659,26 @@ show_status() {
     echo "[-] Power & Battery:"
     echo "    Bypass Charging: ${bypass_st}"
     echo "    Battery Level  : ${bat_lvl:-0}%"
+    echo ""
+    local fas_st="NOT SUPPORTED (no /dev/encore_fas in kernel)"
+    if [ -c "/dev/encore_fas" ]; then
+        fas_st="STANDBY (/dev/encore_fas ready)"
+        local fas_state_f="${DATA_DIR}/fas_state.json"
+        if [ -f "$fas_state_f" ]; then
+            local is_act=$(grep '"active":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+            if [ "$is_act" = "true" ]; then
+                local f_pid=$(grep '"pid":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+                local f_pkg=$(grep '"pkg":' "$fas_state_f" 2>/dev/null | cut -d'"' -f4)
+                local f_fps=$(grep '"target_fps":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+                local f_ev=$(grep '"last_event":' "$fas_state_f" 2>/dev/null | cut -d'"' -f4)
+                local f_bst=$(grep '"uclamp_boost":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+                local f_jk=$(grep '"jank_count":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
+                fas_st="ACTIVE (PID: ${f_pid} [${f_pkg}], Target: ${f_fps} FPS, Event: ${f_ev}, Boost: ${f_bst}, Drops: ${f_jk})"
+            fi
+        fi
+    fi
+    echo "[-] Frame-Aware Scheduling (Encore FAS):"
+    echo "    Encore FAS     : ${fas_st}"
     echo "=========================================================="
 }
 
@@ -628,6 +740,19 @@ case "$1" in
         ;;
     set_bypass|bypass)
         set_bypass "$2"
+        ;;
+    start_fas)
+        start_fas "$2" "$3"
+        ;;
+    stop_fas)
+        stop_fas
+        ;;
+    fas_status)
+        if [ -x "${MODDIR}/bin/fas_governor" ]; then
+            "${MODDIR}/bin/fas_governor" status
+        else
+            echo '{"active":false}'
+        fi
         ;;
     balance|*)
         apply_balance "$2"

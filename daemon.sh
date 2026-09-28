@@ -115,16 +115,42 @@ while true; do
             fi
         done
 
+        # Ensure Encore FAS governor is running for this game process
+        fas_cfg=true
+        if [ -f "$CONFIG_FILE" ]; then
+            if grep -q '"encore_fas_enabled": false' "$CONFIG_FILE" 2>/dev/null; then
+                fas_cfg=false
+            fi
+        fi
+        if [ "$fas_cfg" = "true" ] && [ -e "/dev/encore_fas" ]; then
+            main_pid=$(pidof "$pkg" 2>/dev/null | awk '{print $1}')
+            if [ -n "$main_pid" ]; then
+                fas_active=false
+                if [ -f "${DATA_DIR}/fas_governor.pid" ]; then
+                    fpid=$(cat "${DATA_DIR}/fas_governor.pid" 2>/dev/null)
+                    if [ -n "$fpid" ] && [ -d "/proc/$fpid" ]; then
+                        attached=$(grep '"pid":' "${DATA_DIR}/fas_state.json" 2>/dev/null | awk '{print $2}' | tr -d ',')
+                        if [ "$attached" = "$main_pid" ]; then
+                            fas_active=true
+                        fi
+                    fi
+                fi
+                if [ "$fas_active" = "false" ]; then
+                    sh "$TUNER" start_fas "$pkg"
+                fi
+            fi
+        fi
+
         # Ensure bypass charging is active if plugged in while gaming
-        local bypass_cfg=true
+        bypass_cfg=true
         if [ -f "$CONFIG_FILE" ]; then
             if grep -q '"game_bypass_charging": false' "$CONFIG_FILE" 2>/dev/null; then
                 bypass_cfg=false
             fi
         fi
         if [ "$bypass_cfg" = "true" ]; then
-            local usb_v=$(cat /sys/class/power_supply/usb/voltage_now 2>/dev/null || echo 0)
-            local cur_suspend=$(cat /sys/class/power_supply/battery/input_suspend 2>/dev/null || echo 0)
+            usb_v=$(cat /sys/class/power_supply/usb/voltage_now 2>/dev/null || echo 0)
+            cur_suspend=$(cat /sys/class/power_supply/battery/input_suspend 2>/dev/null || echo 0)
             if [ "$usb_v" -gt 4000000 ] && [ "$cur_suspend" != "1" ]; then
                 sh "$TUNER" set_bypass 1
             fi

@@ -5,6 +5,8 @@
   "screen_off_powersave": true,
   "toast_notifications": true,
   "game_bypass_charging": true,
+  "encore_fas_enabled": true,
+  "fas_target_fps": 60,
   "battery_saver_trigger": true,
   "battery_saver_level": 20,
   "game_apps": [

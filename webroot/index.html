@@ -608,7 +608,23 @@
           <span class="tele-badge" id="gpuPwrLabel">Pwr: 6</span>
         </div>
         <div class="tele-val" id="gpuVal">-- MHz</div>
-        <div class="tele-sub" id="batteryLabel">Battery: --%</div>
+        <div class="tele-sub">Dynamic Scaling</div>
+      </div>
+      <div class="tele-item">
+        <div class="tele-label">
+          <span>Encore FAS</span>
+          <span class="tele-badge" id="fasStatusBadge">STANDBY</span>
+        </div>
+        <div class="tele-val" id="fasVal">-- FPS</div>
+        <div class="tele-sub" id="fasSub">Hardware Frame Hook</div>
+      </div>
+      <div class="tele-item" style="grid-column: span 2;">
+        <div class="tele-label">
+          <span>Power & Battery</span>
+          <span class="tele-badge" id="bypassBadge">NORMAL</span>
+        </div>
+        <div class="tele-val" id="batteryVal">--%</div>
+        <div class="tele-sub" id="powerSub">Discharging</div>
       </div>
     </div>
   </div>
@@ -627,8 +643,11 @@
     <button class="btn-action" id="btnToggleBypass" onclick="toggleBypassSetting()">
       <span id="bypassIcon">⚡</span> <span id="bypassLabel">Bypass: ON</span>
     </button>
-    <button class="btn-action" style="grid-column: span 2;" onclick="promptCustomApp()">
-      <span>➕</span> Add Custom Application
+    <button class="btn-action" id="btnToggleFas" onclick="toggleFasSetting()">
+      <span id="fasIcon">🎯</span> <span id="fasLabel">FAS: ON</span>
+    </button>
+    <button class="btn-action" onclick="promptCustomApp()">
+      <span>➕</span> Add Custom App
     </button>
   </div>
 
@@ -699,9 +718,15 @@
         </tr>
         <tr>
           <td>LMKD Kill Floor</td>
-          <td style="color:var(--accent-game); color:var(--accent-game);">Adj 201 (Protected)</td>
+          <td style="color:var(--accent-game);">Adj 201 (Protected)</td>
           <td>Normal (0)</td>
           <td>Normal (0)</td>
+        </tr>
+        <tr>
+          <td>Encore FAS (libgui)</td>
+          <td style="color:var(--accent-game);">Reactive 0-85 Boost</td>
+          <td>Standby (0 overhead)</td>
+          <td>Standby (0 overhead)</td>
         </tr>
       </tbody>
     </table>
@@ -752,6 +777,7 @@
     let globalForcedMode = 'auto';
     let toastEnabled = true;
     let bypassEnabled = true;
+    let fasEnabled = true;
 
     function updateToastButton() {
       const icon = document.getElementById('toastIcon');
@@ -768,6 +794,15 @@
       if (icon && lbl) {
         icon.innerText = bypassEnabled ? '⚡' : '🔌';
         lbl.innerText = 'Bypass: ' + (bypassEnabled ? 'ON' : 'OFF');
+      }
+    }
+
+    function updateFasButton() {
+      const icon = document.getElementById('fasIcon');
+      const lbl = document.getElementById('fasLabel');
+      if (icon && lbl) {
+        icon.innerText = fasEnabled ? '🎯' : '⭕';
+        lbl.innerText = 'FAS: ' + (fasEnabled ? 'ON' : 'OFF');
       }
     }
 
@@ -790,6 +825,20 @@
       showToast("Game Bypass " + (bypassEnabled ? "Enabled" : "Disabled"));
     }
 
+    async function toggleFasSetting() {
+      fasEnabled = !fasEnabled;
+      configData.encore_fas_enabled = fasEnabled;
+      updateFasButton();
+      await exec(`echo '${JSON.stringify(configData)}' > /data/adb/uclamp_profiler/config.json`);
+      if (!fasEnabled) {
+        await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh stop_fas`);
+      } else if (stateData.current_mode === 'game' && stateData.top_package && stateData.top_package !== 'None') {
+        await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh start_fas "${stateData.top_package}"`);
+      }
+      showToast("Encore FAS " + (fasEnabled ? "Enabled" : "Disabled"));
+      pollLiveStats();
+    }
+
     async function loadData() {
       try {
         const res = await exec("sh /data/adb/modules/uclamp_auto_profiler/tuner.sh get_info");
@@ -801,8 +850,10 @@
           globalForcedMode = configData.forced_mode || 'auto';
           toastEnabled = (configData.toast_notifications !== false);
           bypassEnabled = (configData.game_bypass_charging !== false);
+          fasEnabled = (configData.encore_fas_enabled !== false);
           updateToastButton();
           updateBypassButton();
+          updateFasButton();
           updateDashboard();
           renderAppList();
         }
@@ -876,13 +927,64 @@
       document.getElementById('gpuVal').innerText = (stateData.gpu_mhz || 342) + ' MHz';
       document.getElementById('gpuPwrLabel').innerText = 'Pwr: ' + (stateData.gpu_pwrlevel || 6);
 
-      let isChg = '';
-      if (stateData.bypass_active) {
-        isChg = '⚡ Bypass Active';
-      } else if (stateData.is_charging) {
-        isChg = '⚡ Charging';
+      // Encore FAS Telemetry
+      const fasBadge = document.getElementById('fasStatusBadge');
+      const fasVal = document.getElementById('fasVal');
+      const fasSub = document.getElementById('fasSub');
+      if (fasBadge && fasVal && fasSub) {
+        if (!stateData.has_encore_fas) {
+          fasBadge.innerText = 'NO KERNEL';
+          fasBadge.style.color = 'var(--text-muted)';
+          fasBadge.style.background = 'rgba(255,255,255,0.05)';
+          fasVal.innerText = 'Unsupported';
+          fasSub.innerText = 'Missing /dev/encore_fas';
+        } else if (stateData.fas_active) {
+          const evt = stateData.fas_last_event || 'HEALTHY';
+          fasBadge.innerText = evt;
+          if (evt.includes('JANK') || evt.includes('BOOST')) {
+            fasBadge.style.color = 'var(--danger)';
+            fasBadge.style.background = 'rgba(255,82,82,0.15)';
+          } else if (evt === 'PAUSED') {
+            fasBadge.style.color = 'var(--accent-battery)';
+            fasBadge.style.background = 'rgba(255,171,0,0.15)';
+          } else {
+            fasBadge.style.color = 'var(--accent-game)';
+            fasBadge.style.background = 'rgba(0,230,118,0.15)';
+          }
+          fasVal.innerText = (stateData.fas_target_fps || 60) + ' FPS Target';
+          fasSub.innerText = 'uclamp ' + (stateData.fas_uclamp_boost || 25) + ' | ' + (stateData.fas_jank_count || 0) + ' drops';
+        } else {
+          fasBadge.innerText = 'STANDBY';
+          fasBadge.style.color = 'var(--accent-daily)';
+          fasBadge.style.background = 'rgba(0,176,255,0.1)';
+          fasVal.innerText = 'Standby';
+          fasSub.innerText = 'Active during Gaming';
+        }
       }
-      document.getElementById('batteryLabel').innerText = 'Battery: ' + (stateData.battery_level || 0) + '% ' + isChg;
+
+      // Power & Battery Telemetry
+      const bBadge = document.getElementById('bypassBadge');
+      const bVal = document.getElementById('batteryVal');
+      const pSub = document.getElementById('powerSub');
+      if (bBadge && bVal && pSub) {
+        bVal.innerText = (stateData.battery_level || 0) + '%';
+        if (stateData.bypass_active) {
+          bBadge.innerText = 'BYPASS';
+          bBadge.style.color = 'var(--accent-game)';
+          bBadge.style.background = 'rgba(0,230,118,0.15)';
+          pSub.innerText = 'Direct USB Power';
+        } else if (stateData.is_charging) {
+          bBadge.innerText = 'CHARGING';
+          bBadge.style.color = 'var(--accent-daily)';
+          bBadge.style.background = 'rgba(0,176,255,0.15)';
+          pSub.innerText = 'Fast Charging';
+        } else {
+          bBadge.innerText = 'BATTERY';
+          bBadge.style.color = 'var(--accent-battery)';
+          bBadge.style.background = 'rgba(255,171,0,0.15)';
+          pSub.innerText = 'Discharging';
+        }
+      }
 
       // Daemon status
       const daemonEl = document.getElementById('daemonStatus');

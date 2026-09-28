@@ -30,21 +30,30 @@ Includes a fully responsive, self-contained **WebUI** inside **KernelSU Next** w
   - Prevents battery thermal build-up and preserves long-term battery lifespan while gaming.
   - Configurable toggle switch directly inside the KernelSU Next WebUI (`Bypass: ON / OFF`).
 
+- 🎯 **Encore FAS (Hardware Frame-Aware Scheduling)**:
+  - Hooks directly into Android graphics pipeline (`Surface::queueBuffer` in `libgui.so`) via Linux kernel uprobes (`/dev/encore_fas`).
+  - Standalone, zero-dependency ARM64 native governor binary (`bin/fas_governor`) with microsecond event reaction time.
+  - Dynamically regulates `top-app` UCLAMP utilization based on real render frame timing:
+    - **Smooth 60 FPS**: lowers uclamp to baseline (25-30) for battery conservation and cool thermals.
+    - **Frame Drops & Jank**: instantaneously ramps uclamp to 60 (`BOOST_SOFT`) or 85 (`BIG_JANK`) within sub-milliseconds.
+    - **Loading Screens & Pauses**: detects inactivity and drops uclamp to 0.
+  - Dedicated WebUI toggle (`🎯 FAS: ON / OFF`) and live dashboard telemetry with jank drop counters.
+
 - 🎮 **Game Mode (Max Performance & RAM Protection)**:
   - Purges caches (`drop_caches`) on launch to free up to 1.8 GB of physical RAM.
   - Grants game processes immunity from Android LMKD (`oom_score_adj = -900`).
   - Locks `top-app` cpuset with high minimum UCLAMP boost (`uclamp.min = 35`, `boosted = 1`, `latency_sensitive = 1`).
   - Sets schedutil CPU up-rate to 0µs (instant frequency spike) and holds down-rate against micro-stuttering.
   - Elevates Adreno 630 GPU clock floor to 342 MHz / 414 MHz (prevents frame drops during combat).
-  - Pushes idle system background pages to 3.5 GB LZ4 ZRAM (`swappiness = 160`).
+  - Pushes idle system background pages to 4.0 GB ZSTD ZRAM (`swappiness = 100`).
 
 - 📱 **Interactive WebUI (KernelSU Next)**:
   - 100% self-contained (HTML5/CSS/JavaScript), zero internet dependencies.
-  - Live hardware telemetry dashboard: Physical RAM, ZRAM swap, CPU Little/Big GHz, Adreno 630 MHz, and Battery %.
+  - Live hardware telemetry dashboard: Physical RAM, ZRAM swap, CPU Little/Big GHz, Adreno 630 MHz, Encore FAS state, and Battery %.
   - **App Profiler Toggle Matrix**: View all installed apps and toggle their profiles between `🎮 Game`, `⚖️ Daily`, and `🔋 Battery` with a single tap.
   - Instant search and category filter tabs (`All`, `Game`, `Daily`, `Battery`).
   - Manual mode overrides (`Auto`, `Force Game`, `Force Daily`, `Force Battery`).
-  - Quick action buttons to drop RAM caches or restart the daemon.
+  - Quick action buttons to drop RAM caches, restart daemon, and toggle Toast popups, Bypass charging, and Encore FAS.
 
 ---
 
@@ -52,16 +61,17 @@ Includes a fully responsive, self-contained **WebUI** inside **KernelSU Next** w
 
 | Subsystem / Node | 🎮 Game Mode | ⚖️ Daily Balanced | 🔋 Battery Saver |
 |---|---|---|---|
+| **Encore FAS (libgui)** | `Active (Reactive 0-85 Boost)` | `Standby (0 overhead)` | `Standby (0 overhead)` |
 | **UCLAMP `top-app`** | `min: 35` \| `max: max` \| `boost: 1` \| `ls: 1` | `min: 20` \| `max: max` \| `boost: 1` \| `ls: 1` | `min: 0` \| `max: 80` \| `boost: 0` \| `ls: 0` |
 | **UCLAMP `background`** | Clamped `max: 20` | `max: 50` | `max: 20` |
 | **Schedutil CPU (Little)** | `up: 0µs` \| `down: 40ms` \| `hispeed: 1.51 GHz` | `up: 500µs` \| `down: 20ms` \| `hispeed: 1.13 GHz` | `up: 2ms` \| `down: 5ms` \| `hispeed: 0.90 GHz` |
 | **Schedutil CPU (Big)** | `up: 0µs` \| `down: 50ms` \| `hispeed: 2.09 GHz` | `up: 500µs` \| `down: 20ms` \| `hispeed: 1.61 GHz` | `up: 3ms` \| `down: 5ms` \| `hispeed: 1.20 GHz` |
 | **GPU Adreno 630** | `min_pwr: 5 (342 MHz)` \| `max: 710 MHz` | `257 MHz - 710 MHz` | `max_pwr: 3 (Capped at 520 MHz)` |
-| **Virtual Memory** | `swappiness = 160` \| `watermark = 30` | `swappiness = 100` \| `watermark = 15` | `swappiness = 60` \| `watermark = 10` |
+| **Virtual Memory** | `swappiness = 100` \| `watermark = 30` | `swappiness = 100` \| `watermark = 15` | `swappiness = 60` \| `watermark = 10` |
 | **I/O Anxiety (`sda`)** | `sync_ratio = 8` \| `read_ahead = 1024 KB` | `sync_ratio = 4` \| `read_ahead = 512 KB` | `sync_ratio = 2` \| `read_ahead = 128 KB` |
 | **le9 Workingset** | `clean_min = 5%` \| `clean_low = 10%` | `clean_min = 5%` \| `clean_low = 10%` | `clean_min = 5%` \| `clean_low = 10%` |
-| **ZRAM Expansion** | **3.5 GB (3584 MB)** LZ4 Priority 32767 | 3.5 GB | 3.5 GB |
-| **LMKD Game Shield** | `oom_score_adj = -900` + `renice -20` | Standard | Standard |
+| **ZRAM Expansion** | **4.0 GB (4096 MB)** ZSTD Priority 32767 | 4.0 GB ZSTD | 4.0 GB ZSTD |
+| **LMKD Game Shield** | `oom_score_adj = -1000` + `renice -20` | Standard | Standard |
 
 ---
 
