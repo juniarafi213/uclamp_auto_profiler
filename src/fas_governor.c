@@ -388,9 +388,21 @@ static int cmd_start(int target_pid, int target_fps, const char *pkg_name) {
     reg.pid = target_pid;
     reg.offset = offset;
     str_copy(reg.path, LIBGUI_PATH);
-    reg.cfg.count = 1;
-    reg.cfg.fps[0] = target_fps > 0 ? target_fps : 60;
-    reg.cfg.vsync_ns = 1000000000U / reg.cfg.fps[0];
+    if (target_fps == 30) {
+        reg.cfg.count = 1;
+        reg.cfg.fps[0] = 30;
+        reg.cfg.vsync_ns = 1000000000U / 30;
+    } else if (target_fps == 60) {
+        reg.cfg.count = 1;
+        reg.cfg.fps[0] = 60;
+        reg.cfg.vsync_ns = 1000000000U / 60;
+    } else {
+        // Auto multi-rate mode: kernel tracks both 60 FPS and 30 FPS cadences automatically!
+        reg.cfg.count = 2;
+        reg.cfg.fps[0] = 60;
+        reg.cfg.fps[1] = 30;
+        reg.cfg.vsync_ns = 1000000000U / 60;
+    }
 
     long ret = sys3(SYS_IOCTL, g_fas_fd, FAS_IOC_REGISTER, (long)&reg);
     if (ret != 0) {
@@ -428,6 +440,10 @@ static int cmd_start(int target_pid, int target_fps, const char *pkg_name) {
     int_to_str(target_pid, num_buf); print_out(num_buf);
     print_out(" (Target: ");
     int_to_str(reg.cfg.fps[0], num_buf); print_out(num_buf);
+    if (reg.cfg.count > 1) {
+        print_out("/");
+        int_to_str(reg.cfg.fps[1], num_buf); print_out(num_buf);
+    }
     print_out(" FPS)\n");
 
     // Dynamic scheduling variables
@@ -436,10 +452,11 @@ static int cmd_start(int target_pid, int target_fps, const char *pkg_name) {
     long boost_expire_ms = 0;
     int jank_counter = 0;
     const char *last_event_str = "HEALTHY";
+    int active_fps = reg.cfg.fps[0];
 
     // Set initial smooth baseline
     set_uclamp(baseline_uclamp);
-    update_state_file(1, target_pid, pkg_name, reg.cfg.fps[0], "ATTACHED", baseline_uclamp, 0);
+    update_state_file(1, target_pid, pkg_name, active_fps, "ATTACHED", baseline_uclamp, 0);
 
     // 8. Event loop
     struct pollfd pfd;
@@ -524,6 +541,7 @@ static int cmd_start(int target_pid, int target_fps, const char *pkg_name) {
 
                         case FAS_EVENT_RATE_SWITCH:
                             last_event_str = "RATE_SWITCH";
+                            if (ev->fps > 0) active_fps = (int)ev->fps;
                             break;
 
                         default:
@@ -548,7 +566,7 @@ static int cmd_start(int target_pid, int target_fps, const char *pkg_name) {
                 // Game process died
                 break;
             }
-            update_state_file(1, target_pid, pkg_name, reg.cfg.fps[0],
+            update_state_file(1, target_pid, pkg_name, active_fps,
                               last_event_str, current_uclamp, jank_counter);
             last_status_update = now;
         }

@@ -646,7 +646,10 @@
     <button class="btn-action" id="btnToggleFas" onclick="toggleFasSetting()">
       <span id="fasIcon">🎯</span> <span id="fasLabel">FAS: ON</span>
     </button>
-    <button class="btn-action" onclick="promptCustomApp()">
+    <button class="btn-action" id="btnToggleFps" onclick="cycleFpsSetting()">
+      <span>⏱️</span> <span id="fpsLabel">FPS: Auto</span>
+    </button>
+    <button class="btn-action" style="grid-column: span 2;" onclick="promptCustomApp()">
       <span>➕</span> Add Custom App
     </button>
   </div>
@@ -839,6 +842,39 @@
       pollLiveStats();
     }
 
+    const fpsOptions = [
+      { val: 0, label: 'FPS: Auto' },
+      { val: 60, label: 'FPS: 60' },
+      { val: 30, label: 'FPS: 30' }
+    ];
+
+    function updateFpsButton() {
+      const lbl = document.getElementById('fpsLabel');
+      if (lbl) {
+        const curVal = configData.fas_target_fps || 0;
+        const opt = fpsOptions.find(o => o.val === curVal) || fpsOptions[0];
+        lbl.innerText = opt.label;
+      }
+    }
+
+    async function cycleFpsSetting() {
+      const curVal = configData.fas_target_fps || 0;
+      let nextIdx = 0;
+      if (curVal === 0) nextIdx = 1;       // Auto -> 60
+      else if (curVal === 60) nextIdx = 2;  // 60 -> 30
+      else nextIdx = 0;                     // 30 -> Auto
+
+      const nextOpt = fpsOptions[nextIdx];
+      configData.fas_target_fps = nextOpt.val;
+      updateFpsButton();
+      await exec(`echo '${JSON.stringify(configData)}' > /data/adb/uclamp_profiler/config.json`);
+      if (stateData.current_mode === 'game' && stateData.top_package && stateData.top_package !== 'None') {
+        await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh start_fas "${stateData.top_package}" "${nextOpt.val}"`);
+      }
+      showToast("FAS Target: " + (nextOpt.val === 0 ? "Auto (60/30)" : nextOpt.val + " FPS"));
+      pollLiveStats();
+    }
+
     async function loadData() {
       try {
         const res = await exec("sh /data/adb/modules/uclamp_auto_profiler/tuner.sh get_info");
@@ -854,6 +890,7 @@
           updateToastButton();
           updateBypassButton();
           updateFasButton();
+          updateFpsButton();
           updateDashboard();
           renderAppList();
         }

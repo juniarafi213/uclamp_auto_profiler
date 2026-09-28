@@ -103,16 +103,17 @@ set_bypass() {
 
 start_fas() {
     local pkg="$1"
-    local fps="${2:-60}"
+    local fps="${2}"
     [ ! -c "/dev/encore_fas" ] && return 0
     [ ! -x "${MODDIR}/bin/fas_governor" ] && return 0
     [ -z "$pkg" ] && return 0
 
     # Read target FPS from config if not provided
-    if [ -z "$2" ] && [ -f "$CONFIG_FILE" ]; then
+    if [ -z "$fps" ] && [ -f "$CONFIG_FILE" ]; then
         local cfg_fps=$(grep '"fas_target_fps":' "$CONFIG_FILE" 2>/dev/null | awk '{print $2}' | tr -d ',')
         [ -n "$cfg_fps" ] && fps="$cfg_fps"
     fi
+    [ -z "$fps" ] && fps=0
 
     local target_pid=$(pidof "$pkg" 2>/dev/null | awk '{print $1}')
     if [ -z "$target_pid" ]; then
