@@ -275,6 +275,15 @@ render() {
     printf "${C_CYAN}│${C_RST}   #6: %s %4d MHz  #7: %s %4d MHz                   ${C_CYAN}│${C_RST}\n" \
         "$(draw_bar $((c6 / 1000)) $((BIG_MAX_KHZ / 1000)) 8 "$C_MAG")" "$((c6 / 1000))" \
         "$(draw_bar $((c7 / 1000)) $((BIG_MAX_KHZ / 1000)) 8 "$C_MAG")" "$((c7 / 1000))"
+    
+    # Scheduler Engine Status
+    local bore_active=0
+    [ -f "/proc/sys/kernel/sched_bore" ] && [ "$(cat /proc/sys/kernel/sched_bore 2>/dev/null)" = "1" ] && bore_active=1
+    if [ "$bore_active" -eq 1 ]; then
+        printf "${C_CYAN}│${C_RST}  Schedulers: BORE ${C_GRN}Active${C_RST} (Burst Scaled) | CASS ${C_GRN}Active${C_RST} (Placement)     ${C_CYAN}│${C_RST}\n"
+    else
+        printf "${C_CYAN}│${C_RST}  Schedulers: CASS ${C_GRN}Active${C_RST} (Placement Aware)                        ${C_CYAN}│${C_RST}\n"
+    fi
     printf "${C_CYAN}├────────────────────────────────────────────────────────────────────────┤${C_RST}\n"
 
     # GPU Adreno 630
