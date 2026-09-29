@@ -19,6 +19,7 @@ set_perm "$MODPATH/post-fs-data.sh" 0 0 0755
 set_perm "$MODPATH/service.sh" 0 0 0755
 set_perm "$MODPATH/tuner.sh" 0 0 0755
 set_perm "$MODPATH/daemon.sh" 0 0 0755
+set_perm "$MODPATH/monitor.sh" 0 0 0755
 [ -d "$MODPATH/bin" ] && set_perm_recursive "$MODPATH/bin" 0 0 0755 0755
 [ -d "$MODPATH/system/bin" ] && set_perm_recursive "$MODPATH/system/bin" 0 0 0755 0755
 

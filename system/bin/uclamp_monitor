@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ -x /data/adb/modules/uclamp_auto_profiler/monitor.sh ]; then
+    exec /bin/sh /data/adb/modules/uclamp_auto_profiler/monitor.sh "$@"
+else
+    exec /bin/sh /data/adb/modules/uclamp_auto_profiler/tuner.sh monitor "$@"
+fi

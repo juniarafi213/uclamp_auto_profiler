@@ -120,6 +120,14 @@ uclamp purge
 
 # Assign an app profile directly via CLI
 uclamp set_app com.miHoYo.GenshinImpact game
+
+# Real-time Hardware Monitor (TUI with CPU/GPU/FAS/Power gauges)
+uclamp monitor          # or: uclamp mon (live interactive refresh)
+uclamp monitor -i 0.5   # 500ms fast refresh
+uclamp monitor -1       # snapshot (print once and exit)
+
+# Or run directly on your PC terminal (auto-bridges via ADB):
+./monitor.sh
 ```
 
 ---

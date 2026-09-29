@@ -755,6 +755,15 @@ case "$1" in
             echo '{"active":false}'
         fi
         ;;
+    monitor|mon)
+        if [ -x "${MODDIR}/monitor.sh" ]; then
+            exec /bin/sh "${MODDIR}/monitor.sh" "$2" "$3"
+        elif [ -x "${0%/*}/monitor.sh" ]; then
+            exec /bin/sh "${0%/*}/monitor.sh" "$2" "$3"
+        else
+            echo "[-] monitor.sh not found in ${MODDIR}"
+        fi
+        ;;
     balance|*)
         apply_balance "$2"
         ;;
