@@ -199,7 +199,11 @@ render() {
 
     local pwr_status_str="Discharging"
     local pwr_color="$C_YEL"
-    if [ "$bat_susp" = "1" ]; then
+    if [ "$(cat /sys/class/power_supply/battery/lrc_enable 2>/dev/null)" = "1" ]; then
+        local al=$(cat /sys/class/power_supply/battery/lrc_socmax 2>/dev/null || echo 0)
+        pwr_status_str="🛡️ AUTO CUT (Locked at ${al}% Sony LRC)"
+        pwr_color="$C_GRN"
+    elif [ "$bat_susp" = "1" ]; then
         pwr_status_str="⚡ BYPASS ACTIVE (Direct USB Power)"
         pwr_color="$C_GRN"
     elif [ "$cur_ma" -gt 0 ] || [ "$(cat /sys/class/power_supply/battery/status 2>/dev/null)" = "Charging" ]; then

@@ -31,4 +31,5 @@ else
 fi
 
 ui_print "- Thermal Engine Control: INTEGRATED ✓"
+ui_print "- Sony LRC Game Auto-Cut Charging: INTEGRATED ✓"
 ui_print "- Installation Complete!"

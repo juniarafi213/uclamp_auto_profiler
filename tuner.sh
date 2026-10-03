@@ -101,6 +101,38 @@ set_bypass() {
     fi
 }
 
+set_game_autocut() {
+    local enable="$1"
+    local node_en="/sys/class/power_supply/battery/lrc_enable"
+    local node_max="/sys/class/power_supply/battery/lrc_socmax"
+    local node_min="/sys/class/power_supply/battery/lrc_socmin"
+    [ ! -e "$node_en" ] && return 1
+
+    if [ "$enable" = "1" ] || [ "$enable" = "on" ] || [ "$enable" = "true" ]; then
+        local cur_bat=$(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo 100)
+        local min_bat=$((cur_bat - 3))
+        [ "$min_bat" -lt 1 ] && min_bat=1
+        echo "$cur_bat" > "$node_max" 2>/dev/null
+        echo "$min_bat" > "$node_min" 2>/dev/null
+        echo 1 > "$node_en" 2>/dev/null
+        echo "$cur_bat" > "${DATA_DIR}/game_autocut_level"
+        log "Game Auto Cut Charging ACTIVATED: Locked at ${cur_bat}% (resume: ${min_bat}% via Sony LRC)"
+        echo "Game Auto Cut Charging: ACTIVATED (Locked at ${cur_bat}%)"
+    elif [ "$enable" = "status" ]; then
+        local lrc_st="DISABLED"
+        if [ "$(cat "$node_en" 2>/dev/null)" = "1" ]; then
+            local al=$(cat "$node_max" 2>/dev/null || echo 0)
+            lrc_st="ACTIVE (Locked at ${al}% via Sony LRC)"
+        fi
+        echo "Game Auto Cut Charging: ${lrc_st}"
+    else
+        echo 0 > "$node_en" 2>/dev/null
+        rm -f "${DATA_DIR}/game_autocut_level"
+        log "Game Auto Cut Charging DEACTIVATED: Normal charging resumed"
+        echo "Game Auto Cut Charging: DEACTIVATED"
+    fi
+}
+
 stop_thermal_engine() {
     stop thermal-engine >/dev/null 2>&1
     log "Thermal Throttling DISABLED (thermal-engine stopped)"
@@ -297,11 +329,22 @@ apply_game() {
     echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
     [ -n "$pkg" ] && protect_game "$pkg"
 
-    # 8. Trigger Bypass Charging if enabled & connected
-    local bypass_cfg=true
+    # 8. Power & Charging Protection (Auto Cut at Current Battery %)
+    local autocut_cfg=true
     if [ -f "$CONFIG_FILE" ]; then
-        if grep -q '"game_bypass_charging": false' "$CONFIG_FILE" 2>/dev/null; then
-            bypass_cfg=false
+        if grep -q '"game_auto_cut_charging": false' "$CONFIG_FILE" 2>/dev/null; then
+            autocut_cfg=false
+        fi
+    fi
+    if [ "$autocut_cfg" = "true" ]; then
+        set_game_autocut 1
+    fi
+
+    # Optional legacy bypass charging (default disabled)
+    local bypass_cfg=false
+    if [ -f "$CONFIG_FILE" ]; then
+        if grep -q '"game_bypass_charging": true' "$CONFIG_FILE" 2>/dev/null; then
+            bypass_cfg=true
         fi
     fi
     if [ "$bypass_cfg" = "true" ]; then
@@ -339,7 +382,8 @@ apply_game() {
 apply_balance() {
     local pkg="$1"
 
-    # Disable Bypass Charging and stop Encore FAS when leaving Game Mode
+    # Disable Auto Cut Charging, Bypass Charging, and stop Encore FAS when leaving Game Mode
+    set_game_autocut 0
     set_bypass 0
     stop_fas
 
@@ -407,7 +451,8 @@ apply_balance() {
 apply_battery() {
     local pkg="$1"
 
-    # Disable Bypass Charging and stop Encore FAS when leaving Game Mode
+    # Disable Auto Cut Charging, Bypass Charging, and stop Encore FAS when leaving Game Mode
+    set_game_autocut 0
     set_bypass 0
     stop_fas
 
@@ -541,6 +586,13 @@ get_state_json() {
         therm_act=false
     fi
 
+    local autocut_act=false
+    local autocut_lvl=0
+    if [ "$(cat /sys/class/power_supply/battery/lrc_enable 2>/dev/null)" = "1" ]; then
+        autocut_act=true
+        autocut_lvl=$(cat /sys/class/power_supply/battery/lrc_socmax 2>/dev/null || echo 0)
+    fi
+
     cat << EOF
 {
   "current_mode": "${cur_mode}",
@@ -561,6 +613,8 @@ get_state_json() {
   "is_charging": ${is_chg},
   "is_usb_connected": ${usb_conn},
   "bypass_active": ${bypass_act},
+  "auto_cut_active": ${autocut_act},
+  "auto_cut_level": ${autocut_lvl:-0},
   "thermal_active": ${therm_act},
   "wakefulness": "${wake}",
   "has_encore_fas": ${has_fas},
@@ -741,8 +795,14 @@ show_status() {
     echo ""
     local bypass_st="DISABLED"
     [ "$(cat /sys/class/power_supply/battery/input_suspend 2>/dev/null)" = "1" ] && bypass_st="ACTIVE (⚡ Hardware Direct Power)"
+    local autocut_st="DISABLED"
+    if [ "$(cat /sys/class/power_supply/battery/lrc_enable 2>/dev/null)" = "1" ]; then
+        local al=$(cat /sys/class/power_supply/battery/lrc_socmax 2>/dev/null || echo 0)
+        autocut_st="ACTIVE (🛡️ Stopped at ${al}% via Sony LRC)"
+    fi
     local bat_lvl=$(dumpsys battery 2>/dev/null | awk '$1 == "level:" {print $2}')
     echo "[-] Power & Battery:"
+    echo "    Auto Cut Limit : ${autocut_st}"
     echo "    Bypass Charging: ${bypass_st}"
     echo "    Battery Level  : ${bat_lvl:-0}%"
     echo ""
@@ -833,6 +893,9 @@ case "$1" in
         ;;
     set_bypass|bypass)
         set_bypass "$2"
+        ;;
+    set_autocut|autocut)
+        set_game_autocut "$2"
         ;;
     set_thermal|thermal)
         set_thermal "$2"

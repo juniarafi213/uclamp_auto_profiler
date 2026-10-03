@@ -640,8 +640,8 @@
     <button class="btn-action" id="btnToggleToast" onclick="toggleToastSetting()">
       <span id="toastIcon">🔔</span> <span id="toastLabel">Popup: ON</span>
     </button>
-    <button class="btn-action" id="btnToggleBypass" onclick="toggleBypassSetting()">
-      <span id="bypassIcon">⚡</span> <span id="bypassLabel">Bypass: ON</span>
+    <button class="btn-action" id="btnToggleAutoCut" onclick="toggleAutoCutSetting()">
+      <span id="autocutIcon">🛡️</span> <span id="autocutLabel">Auto Cut: ON</span>
     </button>
     <button class="btn-action" id="btnToggleFas" onclick="toggleFasSetting()">
       <span id="fasIcon">🎯</span> <span id="fasLabel">FAS: ON</span>
@@ -782,7 +782,7 @@
     let currentFilter = 'all';
     let globalForcedMode = 'auto';
     let toastEnabled = true;
-    let bypassEnabled = true;
+    let autoCutEnabled = true;
     let fasEnabled = true;
     let thermalDisabled = true;
 
@@ -795,12 +795,12 @@
       }
     }
 
-    function updateBypassButton() {
-      const icon = document.getElementById('bypassIcon');
-      const lbl = document.getElementById('bypassLabel');
+    function updateAutoCutButton() {
+      const icon = document.getElementById('autocutIcon');
+      const lbl = document.getElementById('autocutLabel');
       if (icon && lbl) {
-        icon.innerText = bypassEnabled ? '⚡' : '🔌';
-        lbl.innerText = 'Bypass: ' + (bypassEnabled ? 'ON' : 'OFF');
+        icon.innerText = autoCutEnabled ? '🛡️' : '🔌';
+        lbl.innerText = 'Auto Cut: ' + (autoCutEnabled ? 'ON' : 'OFF');
       }
     }
 
@@ -830,15 +830,16 @@
       showToast("Toast Popups " + (toastEnabled ? "Enabled" : "Disabled"));
     }
 
-    async function toggleBypassSetting() {
-      bypassEnabled = !bypassEnabled;
-      configData.game_bypass_charging = bypassEnabled;
-      updateBypassButton();
+    async function toggleAutoCutSetting() {
+      autoCutEnabled = !autoCutEnabled;
+      configData.game_auto_cut_charging = autoCutEnabled;
+      updateAutoCutButton();
       await exec(`echo '${JSON.stringify(configData)}' > /data/adb/uclamp_profiler/config.json`);
       if (stateData.current_mode === 'game') {
-        await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh set_bypass ${bypassEnabled ? 1 : 0}`);
+        await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh set_autocut ${autoCutEnabled ? 1 : 0}`);
       }
-      showToast("Game Bypass " + (bypassEnabled ? "Enabled" : "Disabled"));
+      showToast("Game Auto Cut Charging " + (autoCutEnabled ? "Enabled (Dynamic Lock)" : "Disabled"));
+      pollLiveStats();
     }
 
     async function toggleFasSetting() {
@@ -908,11 +909,11 @@
           appsData = parsed.apps || [];
           globalForcedMode = configData.forced_mode || 'auto';
           toastEnabled = (configData.toast_notifications !== false);
-          bypassEnabled = (configData.game_bypass_charging !== false);
+          autoCutEnabled = (configData.game_auto_cut_charging !== false);
           fasEnabled = (configData.encore_fas_enabled !== false);
           thermalDisabled = (configData.disable_thermal_throttling !== false);
           updateToastButton();
-          updateBypassButton();
+          updateAutoCutButton();
           updateFasButton();
           updateFpsButton();
           updateThermalButton();
@@ -1042,7 +1043,12 @@
       const pSub = document.getElementById('powerSub');
       if (bBadge && bVal && pSub) {
         bVal.innerText = (stateData.battery_level || 0) + '%';
-        if (stateData.bypass_active) {
+        if (stateData.auto_cut_active) {
+          bBadge.innerText = 'AUTO-CUT';
+          bBadge.style.color = 'var(--accent-game)';
+          bBadge.style.background = 'rgba(0,230,118,0.15)';
+          pSub.innerText = 'Locked at ' + (stateData.auto_cut_level || stateData.battery_level || 0) + '% (Sony LRC)';
+        } else if (stateData.bypass_active) {
           bBadge.innerText = 'BYPASS';
           bBadge.style.color = 'var(--accent-game)';
           bBadge.style.background = 'rgba(0,230,118,0.15)';

@@ -141,11 +141,25 @@ while true; do
             fi
         fi
 
-        # Ensure bypass charging is active if plugged in while gaming
-        bypass_cfg=true
+        # Ensure Auto Cut Charging is active if plugged in while gaming
+        autocut_cfg=true
         if [ -f "$CONFIG_FILE" ]; then
-            if grep -q '"game_bypass_charging": false' "$CONFIG_FILE" 2>/dev/null; then
-                bypass_cfg=false
+            if grep -q '"game_auto_cut_charging": false' "$CONFIG_FILE" 2>/dev/null; then
+                autocut_cfg=false
+            fi
+        fi
+        if [ "$autocut_cfg" = "true" ]; then
+            cur_lrc=$(cat /sys/class/power_supply/battery/lrc_enable 2>/dev/null || echo 0)
+            if [ "$cur_lrc" != "1" ]; then
+                sh "$TUNER" set_game_autocut 1
+            fi
+        fi
+
+        # Optional legacy bypass charging (default disabled)
+        bypass_cfg=false
+        if [ -f "$CONFIG_FILE" ]; then
+            if grep -q '"game_bypass_charging": true' "$CONFIG_FILE" 2>/dev/null; then
+                bypass_cfg=true
             fi
         fi
         if [ "$bypass_cfg" = "true" ]; then
