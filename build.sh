@@ -8,8 +8,35 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT="${DIR}/uclamp_auto_profiler.zip"
 
-echo "[*] Checking Encore FAS native helper..."
 mkdir -p "${DIR}/bin"
+
+echo "[*] Checking Rust daemon (uclampd)..."
+if [ -d "${DIR}/uclampd" ] && command -v cargo >/dev/null 2>&1; then
+    echo "[*] Building uclampd with Cargo for aarch64-unknown-linux-musl..."
+    (
+        cd "${DIR}/uclampd"
+        cargo build --release --target aarch64-unknown-linux-musl
+    )
+    if [ -f "${DIR}/uclampd/target/aarch64-unknown-linux-musl/release/uclampd" ]; then
+        cp "${DIR}/uclampd/target/aarch64-unknown-linux-musl/release/uclampd" "${DIR}/bin/uclampd"
+        if command -v aarch64-linux-gnu-strip >/dev/null 2>&1; then
+            aarch64-linux-gnu-strip "${DIR}/bin/uclampd"
+        elif command -v llvm-strip >/dev/null 2>&1; then
+            llvm-strip "${DIR}/bin/uclampd"
+        fi
+        chmod 755 "${DIR}/bin/uclampd"
+        echo "    ✓ bin/uclampd compiled ($(du -h "${DIR}/bin/uclampd" | cut -f1))"
+    fi
+else
+    echo "[!] cargo not found or local build skipped. Checking existing bin/uclampd..."
+    if [ -f "${DIR}/bin/uclampd" ]; then
+        echo "    ✓ using prebuilt bin/uclampd ($(du -h "${DIR}/bin/uclampd" | cut -f1))"
+    else
+        echo "    ! bin/uclampd not present (will be built by GitHub Actions CI)"
+    fi
+fi
+
+echo "[*] Checking Encore FAS native helper..."
 if [ -f "${DIR}/src/fas_governor.c" ]; then
     if command -v clang >/dev/null 2>&1; then
         echo "[*] Compiling bin/fas_governor (ARM64 freestanding static binary)..."
@@ -29,14 +56,14 @@ echo "[*] Building UCLAMP Auto Profiler flashable zip..."
 rm -f "$OUTPUT"
 
 if command -v zip >/dev/null 2>&1; then
-    (cd "$DIR" && zip -r -9 "$OUTPUT" . -x "*.git*" "*.zip*" "build.sh" ".github/*" "src/*" "include/*")
+    (cd "$DIR" && zip -r -9 "$OUTPUT" . -x "*.git*" "*.zip*" "build.sh" ".github/*" "src/*" "include/*" "uclampd/*")
 else
     python3 -c "
 import zipfile, os
 
 src_dir = '$DIR'
 zip_path = '$OUTPUT'
-ignore_prefixes = ['.git', '.github', 'src', 'include']
+ignore_prefixes = ['.git', '.github', 'src', 'include', 'uclampd', 'target']
 ignore_files = ['build.sh', 'uclamp_auto_profiler.zip']
 
 with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:

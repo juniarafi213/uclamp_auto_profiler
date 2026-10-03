@@ -1,7 +1,7 @@
 id=uclamp_auto_profiler
 name=UCLAMP Auto Profiler
-version=v1.9.0-autocut
-versionCode=190
+version=v2.0.0-rust
+versionCode=200
 author=ivy & Antigravity
-description=Autonomous Game/Daily/Battery profiler for Sony SDM845 with Encore FAS, UCLAMP CASS, Thermal Engine bypass, Sony LRC Game Auto-Cut Charging, GPU & VM tuner, WebUI & Toast Popups.
+description=Autonomous Game/Daily/Battery profiler for Sony SDM845 in Rust (uclampd) with Encore FAS, UCLAMP CASS, Thermal Engine bypass, Sony LRC Game Auto-Cut Charging, GPU & VM tuner, WebUI & Toast Popups.
 webuiIcon=webroot/icon.svg

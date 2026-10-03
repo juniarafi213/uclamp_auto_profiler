@@ -49,4 +49,8 @@ fi
 /system/bin/sh "${MODDIR}/tuner.sh" extract_icons >/dev/null 2>&1 &
 
 # Start Autonomous Daemon
-nohup /system/bin/sh "${MODDIR}/daemon.sh" </dev/null >/dev/null 2>&1 &
+if [ -x "${MODDIR}/bin/uclampd" ]; then
+    nohup "${MODDIR}/bin/uclampd" daemon </dev/null >/dev/null 2>&1 &
+else
+    nohup /system/bin/sh "${MODDIR}/daemon.sh" </dev/null >/dev/null 2>&1 &
+fi

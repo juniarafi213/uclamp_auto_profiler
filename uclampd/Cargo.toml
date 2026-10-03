@@ -1,0 +1,17 @@
+[package]
+name = "uclampd"
+version = "2.0.0"
+edition = "2021"
+authors = ["Uclamp Profiler Developers"]
+description = "Autonomous Hardware & Power Profiler Daemon for Sony Xperia SDM845"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

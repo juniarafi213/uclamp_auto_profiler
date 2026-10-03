@@ -32,4 +32,7 @@ fi
 
 ui_print "- Thermal Engine Control: INTEGRATED ✓"
 ui_print "- Sony LRC Game Auto-Cut Charging: INTEGRATED ✓"
+if [ -x "$MODPATH/bin/uclampd" ]; then
+    ui_print "- Native Rust Engine: uclampd (aarch64) DETECTED ✓"
+fi
 ui_print "- Installation Complete!"

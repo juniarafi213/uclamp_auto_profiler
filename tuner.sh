@@ -6,6 +6,11 @@
 
 MODDIR="${MODDIR:-/data/adb/modules/uclamp_auto_profiler}"
 [ -f "${0%/*}/bin/fas_governor" ] && MODDIR="${0%/*}"
+if [ -x "${MODDIR}/bin/uclampd" ]; then
+    exec "${MODDIR}/bin/uclampd" "$@"
+elif [ -x "${0%/*}/bin/uclampd" ]; then
+    exec "${0%/*}/bin/uclampd" "$@"
+fi
 DATA_DIR="/data/adb/uclamp_profiler"
 CONFIG_FILE="${DATA_DIR}/config.json"
 STATE_FILE="${DATA_DIR}/state.json"
