@@ -597,7 +597,7 @@
       <div class="tele-item">
         <div class="tele-label">
           <span>CPU Clocks</span>
-          <span class="tele-badge" style="color:var(--accent-game); background:rgba(0,230,118,0.1);">CASS ACTIVE</span>
+          <span class="tele-badge" id="cpuThermalBadge" style="color:var(--accent-game); background:rgba(0,230,118,0.1);">UNTHROTTLED</span>
         </div>
         <div class="tele-val" id="cpuVal">-- / -- GHz</div>
         <div class="tele-sub">Little / Big Cluster</div>
@@ -649,7 +649,10 @@
     <button class="btn-action" id="btnToggleFps" onclick="cycleFpsSetting()">
       <span>⏱️</span> <span id="fpsLabel">FPS: Auto</span>
     </button>
-    <button class="btn-action" style="grid-column: span 2;" onclick="promptCustomApp()">
+    <button class="btn-action" id="btnToggleThermal" onclick="toggleThermalSetting()">
+      <span id="thermalIcon">❄️</span> <span id="thermalLabel">Thermal: NO-THROTTLE</span>
+    </button>
+    <button class="btn-action" onclick="promptCustomApp()">
       <span>➕</span> Add Custom App
     </button>
   </div>
@@ -781,6 +784,7 @@
     let toastEnabled = true;
     let bypassEnabled = true;
     let fasEnabled = true;
+    let thermalDisabled = true;
 
     function updateToastButton() {
       const icon = document.getElementById('toastIcon');
@@ -806,6 +810,15 @@
       if (icon && lbl) {
         icon.innerText = fasEnabled ? '🎯' : '⭕';
         lbl.innerText = 'FAS: ' + (fasEnabled ? 'ON' : 'OFF');
+      }
+    }
+
+    function updateThermalButton() {
+      const icon = document.getElementById('thermalIcon');
+      const lbl = document.getElementById('thermalLabel');
+      if (icon && lbl) {
+        icon.innerText = thermalDisabled ? '❄️' : '🔥';
+        lbl.innerText = 'Thermal: ' + (thermalDisabled ? 'NO-THROTTLE' : 'STOCK');
       }
     }
 
@@ -839,6 +852,16 @@
         await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh start_fas "${stateData.top_package}"`);
       }
       showToast("Encore FAS " + (fasEnabled ? "Enabled" : "Disabled"));
+      pollLiveStats();
+    }
+
+    async function toggleThermalSetting() {
+      thermalDisabled = !thermalDisabled;
+      configData.disable_thermal_throttling = thermalDisabled;
+      updateThermalButton();
+      await exec(`echo '${JSON.stringify(configData)}' > /data/adb/uclamp_profiler/config.json`);
+      await exec(`sh /data/adb/modules/uclamp_auto_profiler/tuner.sh set_thermal ${thermalDisabled ? 0 : 1}`);
+      showToast("Thermal Throttling " + (thermalDisabled ? "Disabled (Full Performance)" : "Enabled (Stock)"));
       pollLiveStats();
     }
 
@@ -887,10 +910,12 @@
           toastEnabled = (configData.toast_notifications !== false);
           bypassEnabled = (configData.game_bypass_charging !== false);
           fasEnabled = (configData.encore_fas_enabled !== false);
+          thermalDisabled = (configData.disable_thermal_throttling !== false);
           updateToastButton();
           updateBypassButton();
           updateFasButton();
           updateFpsButton();
+          updateThermalButton();
           updateDashboard();
           renderAppList();
         }
@@ -961,6 +986,18 @@
       document.getElementById('swapBar').style.width = Math.min(100, Math.round((swapUsed / (swapTot || 1)) * 100)) + '%';
 
       document.getElementById('cpuVal').innerText = ((stateData.cpu_little_mhz || 1200) / 1000).toFixed(2) + ' / ' + ((stateData.cpu_big_mhz || 1600) / 1000).toFixed(2) + ' GHz';
+      const cpuThermBadge = document.getElementById('cpuThermalBadge');
+      if (cpuThermBadge) {
+        if (stateData.thermal_active === false) {
+          cpuThermBadge.innerText = 'UNTHROTTLED';
+          cpuThermBadge.style.color = 'var(--accent-game)';
+          cpuThermBadge.style.background = 'rgba(0,230,118,0.15)';
+        } else {
+          cpuThermBadge.innerText = 'STOCK';
+          cpuThermBadge.style.color = 'var(--accent-battery)';
+          cpuThermBadge.style.background = 'rgba(255,171,0,0.15)';
+        }
+      }
       document.getElementById('gpuVal').innerText = (stateData.gpu_mhz || 342) + ' MHz';
       document.getElementById('gpuPwrLabel').innerText = 'Pwr: ' + (stateData.gpu_pwrlevel || 6);
 

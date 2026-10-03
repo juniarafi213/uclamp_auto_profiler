@@ -284,6 +284,14 @@ render() {
     else
         printf "${C_CYAN}│${C_RST}  Schedulers: CASS ${C_GRN}Active${C_RST} (Placement Aware)                        ${C_CYAN}│${C_RST}\n"
     fi
+
+    # Thermal Engine Status
+    local therm_st=$(getprop init.svc.thermal-engine 2>/dev/null)
+    if [ "$therm_st" != "running" ]; then
+        printf "${C_CYAN}│${C_RST}  Thermal   : ${C_GRN}DISABLED (Unthrottled Full Speed)${C_RST}                        ${C_CYAN}│${C_RST}\n"
+    else
+        printf "${C_CYAN}│${C_RST}  Thermal   : ${C_YEL}ACTIVE (Stock Throttling Guard)${C_RST}                          ${C_CYAN}│${C_RST}\n"
+    fi
     printf "${C_CYAN}├────────────────────────────────────────────────────────────────────────┤${C_RST}\n"
 
     # GPU Adreno 630

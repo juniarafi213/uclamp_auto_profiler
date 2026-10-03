@@ -31,6 +31,17 @@ fi
 setprop sys.lmk.minfree_levels '2048:0,4096:100,8192:200,16384:250,32768:900,49152:950' 2>/dev/null
 setprop lmkd.reinit 1 2>/dev/null
 
+# Disable Thermal Throttling on boot if enabled in config (default: true)
+local_dis_thermal=true
+if [ -f "/data/adb/uclamp_profiler/config.json" ]; then
+    if grep -q '"disable_thermal_throttling": false' "/data/adb/uclamp_profiler/config.json" 2>/dev/null; then
+        local_dis_thermal=false
+    fi
+fi
+if [ "$local_dis_thermal" = "true" ]; then
+    stop thermal-engine >/dev/null 2>&1
+fi
+
 # Initial ZRAM 4096M zstd setup
 /system/bin/sh "${MODDIR}/tuner.sh" setup_zram 4096 >/dev/null 2>&1
 

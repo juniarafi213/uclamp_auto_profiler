@@ -101,6 +101,52 @@ set_bypass() {
     fi
 }
 
+stop_thermal_engine() {
+    stop thermal-engine >/dev/null 2>&1
+    log "Thermal Throttling DISABLED (thermal-engine stopped)"
+}
+
+start_thermal_engine() {
+    start thermal-engine >/dev/null 2>&1
+    log "Thermal Throttling ENABLED (thermal-engine started)"
+}
+
+set_thermal() {
+    local enable="$1"
+    case "$enable" in
+        0|off|disable)
+            stop_thermal_engine
+            echo "Thermal Throttling: DISABLED"
+            if [ -f "$CONFIG_FILE" ]; then
+                if grep -q '"disable_thermal_throttling"' "$CONFIG_FILE" 2>/dev/null; then
+                    sed -i 's/"disable_thermal_throttling": *[a-z]*/"disable_thermal_throttling": true/' "$CONFIG_FILE" 2>/dev/null
+                fi
+            fi
+            ;;
+        1|on|enable)
+            start_thermal_engine
+            echo "Thermal Throttling: ENABLED"
+            if [ -f "$CONFIG_FILE" ]; then
+                if grep -q '"disable_thermal_throttling"' "$CONFIG_FILE" 2>/dev/null; then
+                    sed -i 's/"disable_thermal_throttling": *[a-z]*/"disable_thermal_throttling": false/' "$CONFIG_FILE" 2>/dev/null
+                fi
+            fi
+            ;;
+        status)
+            local st=$(getprop init.svc.thermal-engine 2>/dev/null || echo "unknown")
+            local pid=$(pidof thermal-engine 2>/dev/null || echo "")
+            if [ "$st" = "running" ] || [ -n "$pid" ]; then
+                echo "Thermal Throttling: ENABLED (thermal-engine running, PID: ${pid:-?})"
+            else
+                echo "Thermal Throttling: DISABLED (thermal-engine stopped)"
+            fi
+            ;;
+        *)
+            echo "Usage: uclamp thermal [on|off|status]"
+            ;;
+    esac
+}
+
 start_fas() {
     local pkg="$1"
     local fps="${2}"
@@ -262,7 +308,18 @@ apply_game() {
         set_bypass 1
     fi
 
-    # 9. Hardware Frame Aware Scheduling (Encore FAS)
+    # 9. Thermal Throttling Control
+    local dis_thermal=true
+    if [ -f "$CONFIG_FILE" ]; then
+        if grep -q '"disable_thermal_throttling": false' "$CONFIG_FILE" 2>/dev/null; then
+            dis_thermal=false
+        fi
+    fi
+    if [ "$dis_thermal" = "true" ]; then
+        stop_thermal_engine
+    fi
+
+    # 10. Hardware Frame Aware Scheduling (Encore FAS)
     local fas_cfg=true
     if [ -f "$CONFIG_FILE" ]; then
         if grep -q '"encore_fas_enabled": false' "$CONFIG_FILE" 2>/dev/null; then
@@ -285,6 +342,17 @@ apply_balance() {
     # Disable Bypass Charging and stop Encore FAS when leaving Game Mode
     set_bypass 0
     stop_fas
+
+    # Restore thermal throttling if not permanently disabled
+    local dis_thermal=true
+    if [ -f "$CONFIG_FILE" ]; then
+        if grep -q '"disable_thermal_throttling": false' "$CONFIG_FILE" 2>/dev/null; then
+            dis_thermal=false
+        fi
+    fi
+    if [ "$dis_thermal" = "false" ]; then
+        start_thermal_engine
+    fi
 
     # 1. CPU CASS & UCLAMP
     sysctl -w kernel.sched_util_clamp_min_rt_default=96 >/dev/null 2>&1
@@ -342,6 +410,17 @@ apply_battery() {
     # Disable Bypass Charging and stop Encore FAS when leaving Game Mode
     set_bypass 0
     stop_fas
+
+    # Restore thermal throttling if not permanently disabled
+    local dis_thermal=true
+    if [ -f "$CONFIG_FILE" ]; then
+        if grep -q '"disable_thermal_throttling": false' "$CONFIG_FILE" 2>/dev/null; then
+            dis_thermal=false
+        fi
+    fi
+    if [ "$dis_thermal" = "false" ]; then
+        start_thermal_engine
+    fi
 
     # 1. CPU CASS & UCLAMP
     sysctl -w kernel.sched_util_clamp_min_rt_default=64 >/dev/null 2>&1
@@ -457,6 +536,11 @@ get_state_json() {
         fas_janks=$(grep '"jank_count":' "$fas_state_f" 2>/dev/null | awk '{print $2}' | tr -d ',')
     fi
 
+    local therm_act=true
+    if [ "$(getprop init.svc.thermal-engine 2>/dev/null)" != "running" ] && [ -z "$(pidof thermal-engine 2>/dev/null)" ]; then
+        therm_act=false
+    fi
+
     cat << EOF
 {
   "current_mode": "${cur_mode}",
@@ -477,6 +561,7 @@ get_state_json() {
   "is_charging": ${is_chg},
   "is_usb_connected": ${usb_conn},
   "bypass_active": ${bypass_act},
+  "thermal_active": ${therm_act},
   "wakefulness": "${wake}",
   "has_encore_fas": ${has_fas},
   "fas_active": ${fas_act:-false},
@@ -680,6 +765,13 @@ show_status() {
     fi
     echo "[-] Frame-Aware Scheduling (Encore FAS):"
     echo "    Encore FAS     : ${fas_st}"
+    echo ""
+    local therm_st="ENABLED (thermal-engine active)"
+    if [ "$(getprop init.svc.thermal-engine 2>/dev/null)" != "running" ]; then
+        therm_st="DISABLED (⚡ Unthrottled full performance)"
+    fi
+    echo "[-] Thermal Management:"
+    echo "    Thermal Engine : ${therm_st}"
     echo "=========================================================="
 }
 
@@ -741,6 +833,9 @@ case "$1" in
         ;;
     set_bypass|bypass)
         set_bypass "$2"
+        ;;
+    set_thermal|thermal)
+        set_thermal "$2"
         ;;
     start_fas)
         start_fas "$2" "$3"

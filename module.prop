@@ -1,7 +1,7 @@
 id=uclamp_auto_profiler
 name=UCLAMP Auto Profiler
-version=v1.7.0-fas
-versionCode=170
+version=v1.8.0-thermal
+versionCode=180
 author=ivy & Antigravity
-description=Autonomous Game/Daily/Battery profiler for Sony SDM845 with Encore FAS (Frame-Aware Scheduling), UCLAMP CASS, GPU & VM tuner, WebUI, Toast Popups & Hardware Bypass Charging.
+description=Autonomous Game/Daily/Battery profiler for Sony SDM845 with Encore FAS, UCLAMP CASS, Thermal Engine bypass, GPU & VM tuner, WebUI, Toast Popups & Hardware Bypass Charging.
 webuiIcon=webroot/icon.svg

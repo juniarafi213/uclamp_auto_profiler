@@ -30,4 +30,5 @@ else
     ui_print "- Hardware Frame Aware Scheduling: /dev/encore_fas not found (standby)"
 fi
 
+ui_print "- Thermal Engine Control: INTEGRATED ✓"
 ui_print "- Installation Complete!"

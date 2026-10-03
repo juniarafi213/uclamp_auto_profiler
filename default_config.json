@@ -5,6 +5,7 @@
   "screen_off_powersave": true,
   "toast_notifications": true,
   "game_bypass_charging": true,
+  "disable_thermal_throttling": true,
   "encore_fas_enabled": true,
   "fas_target_fps": 0,
   "battery_saver_trigger": true,
