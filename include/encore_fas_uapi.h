@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
-#define FAS_ABI_VERSION 2
+#define FAS_ABI_VERSION 3
 
 #define FAS_MAX_PATH_LEN 256
 #define FAS_MAX_TARGETS 8
@@ -20,8 +20,21 @@
 #define FAS_STATE_DEGRADED (1u << 1)
 #define FAS_STATE_PAUSED (1u << 2)
 
+/* Count and width of the frame interval histogram bins. */
+#define FAS_HIST_BINS 128
+#define FAS_HIST_BIN_NS 1000000u
+
+/* Request flags for struct fas_stats. */
+#define FAS_STATS_CLEAR (1u << 0)
+
 /* Event flags for struct fas_event. */
 #define FAS_EVF_WATCHDOG (1u << 0)
+/*
+ * The stall this event belongs to is in the holdout group. The module tags
+ * BOOST_SOFT, BOOST_HARD, and the jank event of the frame that ends the stall.
+ * A daemon that supports the holdout does not boost for a tagged stall.
+ */
+#define FAS_EVF_HOLDOUT (1u << 1)
 
 /**
  * @brief Module version information.
@@ -48,8 +61,8 @@ struct fas_config {
 	// Count of valid frame rates in fps array (1 to FAS_MAX_TARGETS).
 	__u32 count;
 
-	// Reserved field.
-	__u32 reserved;
+	// Percentage of stalls (0 to 100) that get FAS_EVF_HOLDOUT. 0 disables it.
+	__u32 holdout_pct;
 
 	// Configured frame rates in fps.
 	__u32 fps[FAS_MAX_TARGETS];
@@ -100,6 +113,47 @@ struct fas_state {
 
 	// Reserved fields.
 	__u32 reserved[2];
+};
+
+/**
+ * @brief In/out structure for FAS_IOC_GET_STATS command.
+ *
+ * Reports the internal noise estimates of the detector and a histogram of
+ * all frame intervals since the last clear. Set ctx_id and flags before the
+ * call.
+ */
+struct fas_stats {
+	// Listener ID (input).
+	__s32 ctx_id;
+	// Request flags (input, FAS_STATS_*). FAS_STATS_CLEAR resets the histogram.
+	__u32 flags;
+	// Active target frame rate in fps.
+	__u32 fps;
+	// Width of one histogram bin in nanoseconds (FAS_HIST_BIN_NS).
+	__u32 hist_bin_ns;
+
+	// Moving average of the frame interval (c) in nanoseconds.
+	__u64 cadence_ns;
+	// Moving mean absolute deviation (a) in nanoseconds.
+	__u64 dev_ns;
+	// Tracked lateness quantile (q) in nanoseconds.
+	__u64 quant_ns;
+	// Reference interval (R) in nanoseconds.
+	__u64 ref_ns;
+	// Hitch margin (H) in nanoseconds.
+	__u64 margin_ns;
+	// Hitch threshold (R + H) in nanoseconds.
+	__u64 hitch_ns;
+	// Number of intervals in hist since the last clear.
+	__u64 frames;
+
+	// Count of normal updates of the quantile, capped at the warmup length.
+	__u32 quant_n;
+	// Reserved field.
+	__u32 reserved;
+
+	// Frame interval histogram. The last bin also holds all longer intervals.
+	__u32 hist[FAS_HIST_BINS];
 };
 
 struct fas_listener_info {
@@ -160,7 +214,8 @@ struct fas_event {
 #define FAS_IOC_SET_CONFIG _IOW(FAS_IOC_MAGIC, 3, struct fas_config_args)
 #define FAS_IOC_GET_STATE _IOWR(FAS_IOC_MAGIC, 4, struct fas_state)
 #define FAS_IOC_LIST _IOR(FAS_IOC_MAGIC, 5, struct fas_listener_list)
+#define FAS_IOC_GET_STATS _IOWR(FAS_IOC_MAGIC, 6, struct fas_stats)
 
-#define FAS_IOC_MAXNR 5
+#define FAS_IOC_MAXNR 6
 
 #endif

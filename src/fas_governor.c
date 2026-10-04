@@ -480,6 +480,7 @@ static int cmd_start(int target_pid, int target_fps, const char *pkg_name) {
                 for (int i = 0; i < count; i++) {
                     struct fas_event *ev = &events[i];
                     if (ev->ctx_id != g_ctx_id) continue;
+                    if (ev->flags & FAS_EVF_HOLDOUT) continue;
 
                     switch (ev->type) {
                         case FAS_EVENT_BOOST_SOFT:
