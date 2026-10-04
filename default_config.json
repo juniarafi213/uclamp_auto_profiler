@@ -17,7 +17,9 @@
     "bellavita.toast",
     "com.rifsxd.ksunext",
     "com.android.inputmethod.latin",
-    "com.google.android.inputmethod.latin"
+    "com.google.android.inputmethod.latin",
+    "com.android.launcher3",
+    "pulse"
   ],
   "game_apps": [
     "com.miHoYo.GenshinImpact",

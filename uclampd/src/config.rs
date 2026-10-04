@@ -37,6 +37,8 @@ fn default_freezer_whitelist() -> Vec<String> {
         "com.rifsxd.ksunext".to_string(),
         "com.android.inputmethod.latin".to_string(),
         "com.google.android.inputmethod.latin".to_string(),
+        "com.android.launcher3".to_string(),
+        "pulse".to_string(),
     ]
 }
 

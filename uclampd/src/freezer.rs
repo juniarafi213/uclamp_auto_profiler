@@ -59,12 +59,18 @@ pub fn is_whitelisted_uid(uid: u32, game_uid: Option<u32>, map: &HashMap<u32, Ve
     // 3. Check packages for this UID
     if let Some(pkgs) = map.get(&uid) {
         for pkg in pkgs {
-            // Whitelisted in config
-            if cfg.freezer_whitelist.iter().any(|w| w == pkg) {
+            let pkg_lower = pkg.to_lowercase();
+            // Whitelisted in config (exact match or substring)
+            if cfg.freezer_whitelist.iter().any(|w| {
+                let w_lower = w.to_lowercase();
+                pkg_lower == w_lower || pkg_lower.contains(&w_lower)
+            }) {
                 return true;
             }
-            // Essential system UI & Input methods (Keyboard)
-            if pkg.starts_with("com.android.inputmethod")
+            // Essential system UI, launchers (including Pulse), and Input methods (Keyboard)
+            if pkg_lower.contains("launcher")
+                || pkg_lower.contains("pulse")
+                || pkg.starts_with("com.android.inputmethod")
                 || pkg.starts_with("com.google.android.inputmethod")
                 || pkg == "com.android.systemui"
                 || pkg == "bellavita.toast"
