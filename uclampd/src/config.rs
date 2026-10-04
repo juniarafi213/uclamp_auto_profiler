@@ -31,6 +31,14 @@ fn default_charging_limit() -> u32 {
 fn default_battery_level() -> u32 {
     20
 }
+fn default_freezer_whitelist() -> Vec<String> {
+    vec![
+        "bellavita.toast".to_string(),
+        "com.rifsxd.ksunext".to_string(),
+        "com.android.inputmethod.latin".to_string(),
+        "com.google.android.inputmethod.latin".to_string(),
+    ]
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -78,6 +86,12 @@ pub struct Config {
 
     #[serde(default)]
     pub battery_apps: Vec<String>,
+
+    #[serde(default = "default_true")]
+    pub cgroup_freezer_enabled: bool,
+
+    #[serde(default = "default_freezer_whitelist")]
+    pub freezer_whitelist: Vec<String>,
 }
 
 impl Default for Config {
@@ -113,6 +127,8 @@ impl Default for Config {
                 "com.google.android.apps.books".to_string(),
                 "com.amazon.kindle".to_string(),
             ],
+            cgroup_freezer_enabled: true,
+            freezer_whitelist: default_freezer_whitelist(),
         }
     }
 }
