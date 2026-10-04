@@ -4,7 +4,6 @@ use std::process::Command;
 use crate::android;
 use crate::config::{Config, CURRENT_MODE_FILE};
 use crate::fas;
-use crate::freezer;
 use crate::power;
 use crate::sysfs::{self, read_int, read_node, set_sysctl, set_uclamp, write_node};
 use crate::thermal;
@@ -120,11 +119,6 @@ pub fn apply_game(pkg_opt: Option<&str>) {
         fas::start_fas(pkg, None);
     }
 
-    // 11. Cgroup Process Freezer (Freeze background apps)
-    if !pkg.is_empty() {
-        freezer::freeze_background_apps(pkg);
-    }
-
     let _ = fs::write(CURRENT_MODE_FILE, "game");
     sysfs::log(&format!("Profile switched to GAME (pkg: {})", if pkg.is_empty() { "manual" } else { pkg }));
     android::show_toast_popup("Uclamp: Game Mode", "game");
@@ -138,7 +132,6 @@ pub fn apply_balance(pkg_opt: Option<&str>) {
     let _ = power::set_game_autocut(false);
     let _ = power::set_bypass(false);
     fas::stop_fas();
-    freezer::unfreeze_all_apps();
 
     let cfg = Config::load();
     if !cfg.disable_thermal_throttling {
@@ -203,7 +196,6 @@ pub fn apply_battery(pkg_opt: Option<&str>) {
     let _ = power::set_game_autocut(false);
     let _ = power::set_bypass(false);
     fas::stop_fas();
-    freezer::unfreeze_all_apps();
 
     let cfg = Config::load();
     if !cfg.disable_thermal_throttling {

@@ -2,7 +2,6 @@ mod android;
 mod config;
 mod daemon;
 mod fas;
-mod freezer;
 mod power;
 mod state;
 mod sysfs;
@@ -84,9 +83,6 @@ fn main() {
         }
         "extract_icons" => {
             android::extract_icons();
-        }
-        "freezer" => {
-            freezer::handle_freezer_cli(args.get(2).map(|s| s.as_str()));
         }
         "monitor" | "mon" => {
             let monitor_path = format!("{}/monitor.sh", MODDIR);

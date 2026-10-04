@@ -6,7 +6,6 @@ use std::time::Duration;
 use crate::android;
 use crate::config::{Config, CURRENT_MODE_FILE, DATA_DIR, FORCED_MODE_FILE, MODDIR, PID_FILE};
 use crate::fas;
-use crate::freezer;
 use crate::power::{self, USB_VOLTAGE};
 use crate::sysfs::{self, read_int};
 use crate::tuner;
@@ -125,11 +124,6 @@ pub fn run() {
                 if usb_v > 4000000 && !cur_suspend {
                     let _ = power::set_bypass(true);
                 }
-            }
-
-            // Ensure background apps remain frozen
-            if cfg.cgroup_freezer_enabled {
-                freezer::freeze_background_apps(&pkg);
             }
         }
 

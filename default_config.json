@@ -12,15 +12,6 @@
   "fas_target_fps": 0,
   "battery_saver_trigger": true,
   "battery_saver_level": 20,
-  "cgroup_freezer_enabled": true,
-  "freezer_whitelist": [
-    "bellavita.toast",
-    "com.rifsxd.ksunext",
-    "com.android.inputmethod.latin",
-    "com.google.android.inputmethod.latin",
-    "com.android.launcher3",
-    "pulse"
-  ],
   "game_apps": [
     "com.miHoYo.GenshinImpact",
     "com.cognosphere.GenshinImpact",

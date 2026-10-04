@@ -5,7 +5,6 @@ use std::process::Command;
 use crate::android;
 use crate::config::{Config, CURRENT_MODE_FILE, PID_FILE};
 use crate::fas;
-use crate::freezer;
 use crate::power;
 use crate::sysfs::{read_int, read_node};
 use crate::thermal;
@@ -129,8 +128,7 @@ pub fn get_state_json() -> serde_json::Value {
         "fas_target_fps": fas_state.target_fps,
         "fas_last_event": fas_state.last_event,
         "fas_uclamp_boost": fas_state.uclamp_boost,
-        "fas_jank_count": fas_state.jank_count,
-        "frozen_apps_count": freezer::get_frozen_count()
+        "fas_jank_count": fas_state.jank_count
     })
 }
 
@@ -358,19 +356,6 @@ pub fn show_status() {
         println!("    Thermal Engine : ENABLED (thermal-engine active)");
     } else {
         println!("    Thermal Engine : DISABLED (⚡ Unthrottled full performance)");
-    }
-    println!();
-
-    let frozen_count = freezer::get_frozen_count();
-    println!("[-] Background App Isolation (Cgroup Freezer):");
-    if frozen_count > 0 {
-        let pkgs = freezer::get_frozen_packages();
-        println!("    Status         : ACTIVE (🛡️ {} app(s) suspended in RAM)", frozen_count);
-        if !pkgs.is_empty() {
-            println!("    Frozen Apps    : {}", pkgs.join(", "));
-        }
-    } else {
-        println!("    Status         : STANDBY (All background apps active)");
     }
     println!("==========================================================");
 }
